@@ -4,17 +4,17 @@ import './App.css';
 const Login = () => {
   const interBubbleRef = useRef(null);
   const containerRef = useRef(null);
-  
+
   useEffect(() => {
     const interBubble = interBubbleRef.current;
     const container = containerRef.current;
     if (!interBubble || !container) return;
-    
+
     let curX = 0;
     let curY = 0;
     let tgX = 0;
     let tgY = 0;
-    
+
     function move() {
       curX += (tgX - curX) / 20;
       curY += (tgY - curY) / 20;
@@ -23,24 +23,25 @@ const Login = () => {
       }
       requestAnimationFrame(move);
     }
-    
+
     function handleMouseMove(event) {
       const rect = container.getBoundingClientRect();
       tgX = event.clientX - rect.left;
       tgY = event.clientY - rect.top;
     }
+
     container.addEventListener('mousemove', handleMouseMove);
     move();
-    
+
     return () => {
       container.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
-  
+
   const handleLogin = () => {
     window.location.href = "http://localhost:3001/login";
   };
-  
+
   return (
     <div className="App">
       <div ref={containerRef} className="gradient-bg">
@@ -58,7 +59,6 @@ const Login = () => {
             </filter>
           </defs>
         </svg>
-        
         <div className="gradients-container">
           <div className="g1"></div>
           <div className="g2"></div>
@@ -69,12 +69,15 @@ const Login = () => {
         </div>
         <div className="text-container" style={{ pointerEvents: 'none' }}>
           <div className="login-content" style={{ pointerEvents: 'auto' }}>
-            <h1>Welcome to <span className="swipe-text">SoundSwipe
-              <div className="arrow-container">
-                <img alt="arrow-swipe" src={require('./assets/arrow_swipe.png')} />
-              </div>
-            </span></h1>
-
+            <h1>
+              Welcome to 
+              <img 
+                alt="logo" 
+                className="logo" 
+                src={require('./assets/soundswipe-logo-zip-file/png/logo-no-background.png')}
+                style={{ marginLeft: '10px', verticalAlign: 'middle' }}
+              />
+            </h1>
             <p className="subtitle">Discover new music tailored to your taste</p>
             <button onClick={handleLogin} className="login-button">
               Login with Spotify
