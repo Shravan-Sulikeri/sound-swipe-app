@@ -4,7 +4,7 @@
 
 **SoundSwipe – Personalized Music Discovery and Playlist Creation App**
 
-![Powered by Spotify](https://img.shields.io/badge/Powered%20by-Spotify-1DB954?style=plastic&logo=spotify&link=https://open.spotify.com)
+[![Powered by Spotify](https://img.shields.io/badge/Powered%20by-Spotify-1DB954?style=plastic&logo=spotify)](https://open.spotify.com)
 
 
 ## Project Overview
