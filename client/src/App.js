@@ -1,6 +1,5 @@
 import React, {useState, useEffect} from"react";
 import Login from "./Login";
-import axios from "axios";
 
 
 function App() {
