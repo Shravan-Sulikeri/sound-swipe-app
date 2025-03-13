@@ -71,14 +71,15 @@ app.get("/callback", async (req, res) => {
 			}
 		);
 		// information gets added to session store
-		req.session.token = response.data.access_token;
-		// Prints token to console for reference
-		console.log(req.session.token);
-		res.json({
+		req.session.token = {
 			accessToken: response.data.access_token,
 			refreshToken: response.data.refresh_token,
 			expiresIn: response.data.expires_in,
-		});
+		};
+		// redirects token back to the app
+		res.redirect(
+			`http://localhost:3000/?access_token=${response.data.access_token}`
+		);
 	} catch (error) {
 		console.error(
 			"Error exchanging code for access token:",
@@ -91,7 +92,7 @@ app.get("/callback", async (req, res) => {
 // Step 3: Refresh access token when it expires
 
 app.post("/refresh", async (req, res) => {
-	const refreshToken = req.body.refreshToken;
+	const refreshToken = req.session.token.refreshToken;
 	try {
 		const response = await axios.post(
 			"https://accounts.spotify.com/api/token",
