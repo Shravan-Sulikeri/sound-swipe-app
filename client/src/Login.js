@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import './App.css';
+import './styling/login.css';
 
 const Login = () => {
   const interBubbleRef = useRef(null);
