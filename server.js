@@ -3,23 +3,27 @@ const express = require("express");
 const cors = require("cors");
 const querystring = require("querystring");
 const axios = require("axios");
+const morgan = require("morgan")
 // Session Information
 const session = require("express-session");
 // Database and session store
-const mongoose = require("mongoose");
 const mongoStore = require("connect-mongo");
 
 const app = express();
-app.use(cors());
+app.use(morgan("tiny"));
+app.use(cors({
+		origin: "http://localhost:3000", // Explicitly allow your React app's origin
+		credentials: true, // Allow credentials (cookies)
+	}));
 app.use(express.json());
 app.use(
 	session({
-		secret: "TO REPLACE THIS", // Might need to add to environment variables
+		secret: process.env.SESSION_SECRET || "RANDOM STRING",
 		resave: false,
 		saveUninitialized: false,
-		cookie: { maxAge: 5 * 60 * 1000 }, // 5 minute expiration on session
+		cookie: { maxAge: 60 * 60 * 1000 }, // 1 hour expiration on session
 		store: new mongoStore({
-			mongoUrl: "mongodb://localhost:27017/example",
+			mongoUrl: process.env.MONGO_URL || "mongodb://localhost:27017/example",
 		}),
 	})
 );
@@ -32,6 +36,61 @@ const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 const REDIRECT_URI =
 	process.env.SPOTIFY_REDIRECT_URI || "http://localhost:3001/callback";
+
+// Middleware to check if access token expired and refresh
+const refreshTokenIfExpired = async (req, res, next) => {
+	if (!req.session.token) {
+		return res.status(401).json({ error: "Not authenticated" });
+	}
+
+	const { accessToken, refreshToken, expiresIn, timestamp } = req.session.token;
+	const isExpired = Date.now() - timestamp > expiresIn * 1000; // Check if token is expired
+
+	if (!isExpired) {
+		// Token is still valid
+		req.accessToken = accessToken;
+		return next();
+	}
+
+	try {
+		// Token is expired, refresh it
+		const response = await axios.post(
+			"https://accounts.spotify.com/api/token",
+			querystring.stringify({
+				grant_type: "refresh_token",
+				refresh_token: refreshToken,
+			}),
+			{
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+					Authorization: `Basic ${Buffer.from(
+						`${CLIENT_ID}:${CLIENT_SECRET}`
+					).toString("base64")}`,
+				},
+			}
+		);
+
+		// Update the session with the new token
+		req.session.token = {
+			accessToken: response.data.access_token,
+			refreshToken: refreshToken, // Spotify may not return a new refresh token
+			expiresIn: response.data.expires_in,
+			timestamp: Date.now(),
+		};
+
+		req.accessToken = response.data.access_token;
+		next();
+	} catch (error) {
+		console.error("Error refreshing token:", error.response.data);
+		res.status(400).json({ error: "Failed to refresh token" });
+	}
+};
+
+
+app.get("/api/check-auth", refreshTokenIfExpired, (req, res) => {
+	// If the middleware passes, the user is authenticated
+	res.json({ authenticated: true, user: req.session.token });
+});
 
 // Step 1: Redirect user to Spotify for authentication
 
@@ -75,10 +134,11 @@ app.get("/callback", async (req, res) => {
 			accessToken: response.data.access_token,
 			refreshToken: response.data.refresh_token,
 			expiresIn: response.data.expires_in,
+			timestamp: Date.now(), // Store the time when the token was issued
 		};
 		// redirects token back to the app
 		res.redirect(
-			`http://localhost:3000/?access_token=${response.data.access_token}`
+			`http://localhost:3000/`
 		);
 	} catch (error) {
 		console.error(
@@ -89,33 +149,17 @@ app.get("/callback", async (req, res) => {
 	}
 });
 
-// Step 3: Refresh access token when it expires
-
-app.post("/refresh", async (req, res) => {
-	const refreshToken = req.session.token.refreshToken;
+// Route to fetch user data from Spotify
+app.get("/api/me", refreshTokenIfExpired, async (req, res) => {
 	try {
-		const response = await axios.post(
-			"https://accounts.spotify.com/api/token",
-			querystring.stringify({
-				grant_type: "refresh_token",
-				refresh_token: refreshToken,
-			}),
-			{
-				headers: {
-					"Content-Type": "application/x-www-form-urlencoded",
-					Authorization: `Basic ${Buffer.from(
-						`${CLIENT_ID}:${CLIENT_SECRET}`
-					).toString("base64")}`,
-				},
-			}
-		);
-
-		res.json({
-			accessToken: response.data.access_token,
-			expiresIn: response.data.expires_in,
+		const response = await axios.get("https://api.spotify.com/v1/me", {
+			headers: {
+				Authorization: `Bearer ${req.accessToken}`,
+			},
 		});
+		res.json(response.data);
 	} catch (error) {
-		res.status(400).json({ error: "Failed to refresh token" });
+		res.status(500).json({ error: "Failed to fetch user data" });
 	}
 });
 

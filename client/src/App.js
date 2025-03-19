@@ -2,36 +2,58 @@ import React, { useState, useEffect } from "react";
 import Login from "./Login";
 
 function App() {
-  const [accessToken, setAccessToken] = useState(null);
+	const [userData, setUserData] = useState(null); // KEEPING USER DATA INSTEAD OF TOKEN
+	const [isAuthenticated, setIsAuthenticated] = useState(false);
+	// ALL TOKEN INFORMATION WILL BE HANDLED BY THE SERVER IF YOU NEED SOMETHING LET JONATHAN KNOW
 
-	useEffect(() => {
-		//Get the access token from URL hash after login
-		// const hash = window.location.hash;
-		// if (hash) {
-		// 	const token = new URLSearchParams(hash.substring(1)).get("access_token");
-		// 	if (token) {
-		// 		setAccessToken(token);
-		// 		localStorage.setItem("spotify_access_token", token);
-		// 		window.location.hash = ""; // Clear the URL after storing token
-		// 	}
-		// }
-		const urlParams = new URLSearchParams(window.location.search);
-		const token = urlParams.get("access_token");
+	// step 1: Check if user is authenticated
+	// SEE CHECKAUTH COMMAND
 
-		if (token) {
-			setAccessToken(token);
-			localStorage.setItem("spotify_access_token", token);
-			// Optionally, clear the token from the URL
-			window.history.replaceState({}, document.title, window.location.pathname);
+	// Step 2: Fetch user data from the backend
+	const fetchUserData = async () => {
+		try {
+			const response = await fetch("http://localhost:3001/api/me", {
+				credentials: "include",
+			});
+			if (response.status === 401) {
+				// Session expired
+				setIsAuthenticated(false);
+				window.location.href = "http://localhost:3001/login"; // Redirect to login
+			} else {
+				const data = await response.json();
+				setUserData(data);
+			}
+		} catch (error) {
+			console.error("Error fetching user data:", error);
 		}
+	};
+
+	// Step 2: Check if the user is already logged in (e.g., on page load)
+	useEffect(() => {
+		const checkAuth = async () => {
+			try {
+				const response = await fetch("http://localhost:3001/api/check-auth", {
+					credentials: "include", // Include session cookies
+				});
+				const data = await response.json();
+				if (data.authenticated) {
+					setIsAuthenticated(true);
+					fetchUserData(); // Fetch user data if authenticated
+				} else {
+					setIsAuthenticated(false);
+				}
+			} catch (error) {
+				console.error("Error checking authentication:", error);
+				setIsAuthenticated(false);
+			}
+		};
+		checkAuth();
 	}, []);
 
   return (
     <div>
-      {accessToken ? ( 
+      {isAuthenticated ? ( 
         <h1>Logged in! Now you can explore music.</h1>
-
-
       ): (
         <Login />
       )}
