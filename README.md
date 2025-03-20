@@ -47,7 +47,7 @@ An integrated **AI recommendation system** refines suggestions based on user beh
 - **Node.js** with **Express** – Handles server-side logic and API communication.  
   ![NodeJS](https://img.shields.io/badge/Node.js-6DA55F?logo=node.js&logoColor=white)
 - **Spotify Web API** – Integrates with Spotify to retrieve data, manage playlists, and ensure live updates.  
-  ![Spotify](https://img.shields.io/badge/Spotify%20Web%20API-1ED760?logo=spotify&logoColor=black)
+  ![Spotify](https://img.shields.io/badge/Spotify%20Web%20API-1ED760?logo=spotify&color=black)
 
 ---
 
