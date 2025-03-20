@@ -1,0 +1,6 @@
+# pkl model files/datasets
+*.pkl
+*.csv
+
+# data set folder
+datasets/
