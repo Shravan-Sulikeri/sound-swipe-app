@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Login from "./Login";
+import Home from "./Home_Page/Home";
 
 function App() {
 	const [userData, setUserData] = useState(null); // KEEPING USER DATA INSTEAD OF TOKEN
@@ -53,7 +54,7 @@ function App() {
   return (
     <div>
       {isAuthenticated ? ( 
-        <h1>Logged in! Now you can explore music.</h1>
+        <Home />
       ): (
         <Login />
       )}
