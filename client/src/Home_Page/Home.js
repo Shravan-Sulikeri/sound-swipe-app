@@ -18,12 +18,21 @@ const Home = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [cardTransform, setCardTransform] = useState({ x: 0, y: 0, rotate: 0 });
+    const [isAdd, setIsAdd] = useState(false);
 
     const audioRef = useRef(null);
     const cardRef = useRef(null);
 
     const handleLogout = () => {
         window.location.href = "http://localhost:3001/logout";
+    };
+
+    const handleAddPlaylist = () => {
+        setIsAdd(true);
+    };
+
+    const handleExitPlaylist = () => {
+        setIsAdd(false);
     };
 
     const handleStartSwiping = () => {
@@ -139,8 +148,14 @@ const Home = () => {
             {/* Sidebar */}
             <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
                 <div className="sidebar-header">
-                    <h2>Your Playlists</h2>
-                    <button className="add-playlist-btn">+</button>
+                    <h2 className='playlist-text'>Your Playlists</h2>
+                    <button onClick={handleAddPlaylist} className="add-playlist-btn">+</button>
+                    {isAdd ? (
+                        <div className="add-playlist-form">
+                            <input type="text" placeholder="Playlist Name" />
+                            <button onClick={handleExitPlaylist} className="add-playlist-submit">Create</button>
+                        </div>
+                    ) : null}
                 </div>
                 <div className="playlist-list">
                     {playlists.length === 0 ? (
@@ -163,9 +178,14 @@ const Home = () => {
 
             {/* Main content */}
             <main className={`main-content ${isSidebarCollapsed ? 'expanded' : ''}`}>
-                <section className="welcome-section">
-                    <h1>Welcome to SoundSwipe</h1>
-                    <p>Discover new music by swiping right on songs you like</p>
+                <section className={`welcome-section ${isSwiping ? 'hidden' : ''}`}>
+                            <h1>Welcome to 
+                        <img alt="logo" 
+                            className="logo"  
+                            style={{ marginLeft: '10px', verticalAlign: 'middle', objectFit: 'contain'}}
+                            src={require('../assets/soundswipe-logo-zip-file/png/logo-no-background.png')}/>
+                        </h1>
+                    <p className='paragraph-text'>Discover new music by swiping right on songs you like</p>
                     {!isSwiping && (
                         <button className="start-button" onClick={handleStartSwiping}>
                             Start Swiping
@@ -232,9 +252,13 @@ const Home = () => {
             </main>
 
             {/* Exit button */}
-            {isSwiping && (
+            {isSwiping ? (
                 <button className="exit-button" onClick={handleExitSwiping}>
                     ✕
+                </button>
+            ) : (
+                <button className="logout-button" onClick={handleLogout}>
+                    Logout
                 </button>
             )}
 

@@ -144,7 +144,7 @@
 }
 
 .sidebar.collapsed {
-  transform: translateX(-300px);
+  display: none;
 }
 
 .sidebar-toggle {
@@ -181,6 +181,7 @@
   align-items: center;
   margin-bottom: 30px;
   padding-bottom: 20px;
+  margin-top: 40px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -440,6 +441,30 @@
   z-index: 1000;
 }
 
+.logout-button{
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 70, 110, 0.2);
+    border: none;
+    border-radius: 5%;
+    width: 90px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: rgba(255, 70, 110, 0.8);
+    font-size: 15px;
+    z-index: 1000;
+}
+
+.logout-button:hover{
+    background: rgba(255, 70, 110, 0.4);
+    transform: scale(1.1);
+}
+
 .exit-button:hover {
   background: rgba(255, 70, 110, 0.4);
   transform: scale(1.1);
@@ -463,8 +488,12 @@
 
 .welcome-section {
   text-align: center;
-  margin-bottom: 40px;
   animation: fadeIn 1s ease;
+  margin: 8%
+}
+
+.welcome-section.hidden {
+  display: none;
 }
 
 @keyframes fadeIn {
@@ -474,7 +503,6 @@
 
 .welcome-section h1 {
   font-size: 3.5rem;
-  margin-bottom: 20px;
   background: linear-gradient(45deg, rgba(30, 215, 96, 1) 30%, rgba(220, 220, 220, 1) 70%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -485,7 +513,9 @@
 .welcome-section p {
   color: rgba(255, 255, 255, 0.8);
   font-size: 1.4rem;
+  margin: 0;
   margin-bottom: 40px;
+  margin-top: -12%;
 }
 
 .start-button {
@@ -509,13 +539,10 @@
 }
 
 .swipe-container {
-  background: rgba(255, 255, 255, 0.05);
   border-radius: 20px;
   padding: 30px;
   margin-top: 40px;
   text-align: center;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
   transform-origin: center;
   transition: all 0.5s ease;
 }
