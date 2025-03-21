@@ -37,8 +37,8 @@ An integrated **AI recommendation system** refines suggestions based on user beh
 
 - **React.js** – Enables a dynamic, component-based user interface.  
   ![React](https://img.shields.io/badge/React-%2320232a.svg?logo=react&logoColor=%2361DAFB)
-- **Tailwind CSS** – Provides a clean, modern design with utility-first styling.  
-  ![TailwindCSS](https://img.shields.io/badge/Tailwind%20CSS-%2338B2AC.svg?logo=tailwind-css&logoColor=white)
+- **CSS** – Provides a clean, modern design with utility-first styling.  
+  ![CSS](https://img.shields.io/badge/CSS-%2338B2AC.svg?logo=css&logoColor=white)
 
 ---
 
@@ -53,7 +53,7 @@ An integrated **AI recommendation system** refines suggestions based on user beh
 
 ### **Database**
 
-- **MongoDB** or **Firebase** – Stores user interaction data and supports AI model training.  
+- **MongoDB** – Stores user interaction data.  
   ![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?logo=mongodb&logoColor=white)
 
 ---
