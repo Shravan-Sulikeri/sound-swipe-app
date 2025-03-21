@@ -1,15 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import '../styling/home.css';
+import sound from '../assets/Tyler, The Creator - Glitter (Audio).mp3';
 
 const Home = () => {
     const [isSwiping, setIsSwiping] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [playlists, setPlaylists] = useState([]);
     const [currentSong, setCurrentSong] = useState({
-        title: 'Sample Song Title',
-        artist: 'Artist Name',
-        coverImage: 'https://via.placeholder.com/400',
-        previewUrl: 'https://example.com/preview.mp3',
+        title: 'Glitter',
+        artist: 'Tyler, The Creator',
+        coverImage: require('../assets/Tyler 20the 20Creator- 20Flower 20boy.png'),
+        previewUrl: sound,
     });
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -211,15 +212,22 @@ const Home = () => {
                             className="song-image"
                         />
                         <div className="song-info">
-                            <div>
+                            <div className='song-details'>
                                 <h2 className="song-title">{currentSong.title}</h2>
                                 <p className="artist-name">{currentSong.artist}</p>
                             </div>
                             
                             <div className="audio-controls">
-                                <button className="play-pause-btn" onClick={handlePlayPause}>
-                                    {isPlaying ? '⏸' : '▶'}
-                                </button>
+                                <label className="play-label">
+                                    <input 
+                                        type="checkbox" 
+                                        className="play-btn"
+                                        checked={isPlaying}
+                                        onChange={handlePlayPause}
+                                    />
+                                    <div className="play-icon"></div>
+                                    <div className="pause-icon"></div>
+                                </label>
                                 <div className="progress-bar" onClick={handleProgressClick}>
                                     <div 
                                         className="progress" 
@@ -228,6 +236,7 @@ const Home = () => {
                                 </div>
                                 <div className="time-info">
                                     <span>{formatTime(currentTime)}</span>
+                                    -
                                     <span>{formatTime(duration)}</span>
                                 </div>
                             </div>

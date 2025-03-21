@@ -257,7 +257,6 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* Enhanced song card styles */
 .song-card {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 20px;
@@ -292,17 +291,22 @@
 }
 
 .song-image {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 400px;
-  object-fit: cover;
-  border-radius: 20px 20px 0 0;
+  height: inherit;
+  opacity: 0.7;
+  z-index: -1;
+  object-fit: fill;
 }
 
 .song-info {
-  padding: 20px;
-  background: linear-gradient(to top, rgba(18, 18, 18, 0.95), rgba(18, 18, 18, 0.8));
+  padding: 10px;
+  background: transparent;
   border-radius: 0 0 20px 20px;
   flex: 1;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -311,63 +315,159 @@
 .song-title {
   font-size: 1.8rem;
   font-weight: 600;
-  margin-bottom: 8px;
   color: white;
 }
 
 .artist-name {
   color: rgba(255, 255, 255, 0.7);
   font-size: 1.2rem;
-  margin-bottom: 20px;
+  margin-top: -15px;
 }
 
 .audio-controls {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 20px;
-  padding: 15px;
+  padding: 10px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 10px;
+  margin-top: 300px;
 }
 
-.play-pause-btn {
-  background: rgba(30, 215, 96, 0.2);
-  border: none;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
+.play-label {
+  position: relative;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  color: rgba(30, 215, 96, 0.8);
-  font-size: 20px;
 }
 
-.play-pause-btn:hover {
-  background: rgba(30, 215, 96, 0.4);
-  transform: scale(1.1);
+.play-btn {
+  appearance: none;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: conic-gradient(#ff6347, #ff6347);
+  cursor: pointer;
+  outline: none;
 }
 
+.play-btn::before {
+  content: "";
+  position: absolute;
+  width: 93%;
+  height: 93%;
+  background-color: #000;
+  border-radius: 50%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.play-btn:checked {
+  animation: borderAnimate 700ms ease-in-out 1 forwards;
+}
+
+@keyframes borderAnimate {
+  0% {
+    transform: rotate(0);
+    background: conic-gradient(#ff6347, transparent 20%);
+  }
+  80% {
+    background: conic-gradient(#ff6347, transparent 90%);
+  }
+  100% {
+    transform: rotate(360deg);
+    background: conic-gradient(#ff6347, #ff6347);
+  }
+}
+
+.play-icon {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 65%;
+  top: 50%;
+  background-color: #ff6347;
+  transform: translate(-60%, -50%) rotate(90deg);
+  clip-path: polygon(50% 15%, 0% 100%, 100% 100%);
+  transition: all 400ms ease-in-out;
+  cursor: pointer;
+}
+
+.play-btn:checked + .play-icon {
+  clip-path: polygon(0 100%, 0% 100%, 100% 100%);
+}
+
+.pause-icon {
+  position: absolute;
+  width: 16px;
+  height: 20px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  justify-content: space-between;
+  opacity: 1;
+  transition: opacity 300ms ease-in-out;
+}
+
+.pause-icon::before {
+  content: "";
+  position: absolute;
+  width: 0%;
+  height: 100%;
+  background-color: #ff6347;
+  left: 0;
+}
+
+.pause-icon::after {
+  content: "";
+  position: absolute;
+  width: 0%;
+  height: 100%;
+  background-color: #ff6347;
+  right: 0;
+}
+
+.play-btn:checked ~ .pause-icon::before {
+  animation: reveal 300ms ease-in-out 350ms 1;
+  animation-fill-mode: forwards;
+}
+
+.play-btn:checked ~ .pause-icon::after {
+  animation: reveal 300ms ease-in-out 600ms 1;
+  animation-fill-mode: forwards;
+}
+
+@keyframes reveal {
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 35%;
+  }
+}
+
+
+/* Progress bar styling */
 .progress-bar {
   flex: 1;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
   cursor: pointer;
-  position: relative;
+  overflow: hidden;
 }
 
 .progress {
-  position: absolute;
-  left: 0;
-  top: 0;
   height: 100%;
-  background: rgba(30, 215, 96, 0.8);
-  border-radius: 2px;
-  width: 0%;
-  transition: width 0.1s linear;
+  background: #ff6347;
+  transition: width 0.2s ease;
 }
 
 .time-info {
@@ -406,7 +506,7 @@
 }
 
 .swipe-button.dislike {
-  background: rgba(255, 70, 110, 0.2);
+  background: rgba(255, 70, 110, 0.3);
 }
 
 .swipe-button.dislike:hover {
@@ -414,14 +514,13 @@
 }
 
 .swipe-button.like {
-  background: rgba(30, 215, 96, 0.2);
+  background: rgba(30, 215, 96, 0.3);
 }
 
 .swipe-button.like:hover {
   background: rgba(30, 215, 96, 0.4);
 }
 
-/* Exit button styles */
 .exit-button {
   position: fixed;
   top: 20px;
