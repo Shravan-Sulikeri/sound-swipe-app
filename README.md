@@ -113,8 +113,10 @@ This project aims to **set a new standard** for personalized music recommendatio
 
 ---
 📩 **Project Team:** 
+
 <a href="https://github.com/Shravan-Sulikeri/sound-swipe-app/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=Shravan-Sulikeri/sound-swipe-app" />
 </a>
+
 Made with [contrib.rocks](https://contrib.rocks)
 
