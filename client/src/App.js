@@ -17,7 +17,7 @@ function App() {
 				credentials: "include",
 			});
 			if (response.status === 401) {
-				// Session expired
+				// Session expired or doesnt exist
 				setIsAuthenticated(false);
 				window.location.href = "http://localhost:3001/login"; // Redirect to login
 			} else {
