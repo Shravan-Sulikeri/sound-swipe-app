@@ -149,6 +149,12 @@ app.get("/callback", async (req, res) => {
 	}
 });
 
+// Handle logout and destroy session
+app.get("/logout", (req, res) => {
+	req.session.destroy();
+	res.redirect(`http://localhost:3000/`);
+});
+
 // Route to fetch user data from Spotify
 app.get("/api/me", refreshTokenIfExpired, async (req, res) => {
 	try {
