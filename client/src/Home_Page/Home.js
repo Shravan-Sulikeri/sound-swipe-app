@@ -20,6 +20,7 @@ const Home = () => {
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [cardTransform, setCardTransform] = useState({ x: 0, y: 0, rotate: 0 });
     const [isAdd, setIsAdd] = useState(false);
+    const [beat, setBeat] = useState(0);
 
     const audioRef = useRef(null);
     const cardRef = useRef(null);
@@ -109,8 +110,15 @@ const Home = () => {
 
     const handleTimeUpdate = () => {
         if (audioRef.current) {
-            setCurrentTime(audioRef.current.currentTime);
-            setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+            const currentTime = audioRef.current.currentTime;
+            setCurrentTime(currentTime);
+            setProgress((currentTime / audioRef.current.duration) * 100);
+            
+            // Calculate beat based on current time (assuming 120 BPM)
+            const bpm = 120;
+            const beatInterval = 60 / bpm;
+            const currentBeat = Math.floor(currentTime / beatInterval);
+            setBeat(currentBeat);
         }
     };
 
@@ -228,16 +236,18 @@ const Home = () => {
                                     <div className="play-icon"></div>
                                     <div className="pause-icon"></div>
                                 </label>
-                                <div className="progress-bar" onClick={handleProgressClick}>
-                                    <div 
-                                        className="progress" 
-                                        style={{ width: `${progress}%` }}
-                                    />
-                                </div>
-                                <div className="time-info">
-                                    <span>{formatTime(currentTime)}</span>
-                                    -
-                                    <span>{formatTime(duration)}</span>
+                                <div className="progress-container">
+                                    <div className="progress-bar" onClick={handleProgressClick}>
+                                        <div 
+                                            className="progress" 
+                                            style={{ width: `${progress}%` }}
+                                        />
+                                    </div>
+                                    <div className="time-info">
+                                        <span>{formatTime(currentTime)}</span>
+                                        -
+                                        <span>{formatTime(duration)}</span>
+                                    </div>
                                 </div>
                             </div>
 

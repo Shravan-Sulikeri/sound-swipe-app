@@ -295,10 +295,12 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: inherit;
+  height: 100%;
   opacity: 0.7;
   z-index: -1;
-  object-fit: fill;
+  object-fit: cover;
+  object-position: center;
+  filter: blur(1px);
 }
 
 .song-info {
@@ -324,15 +326,75 @@
   margin-top: -15px;
 }
 
+.waveform-container,
+.waveform,
+.wave-bar {
+  display: none;
+}
+
 .audio-controls {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 20px;
   padding: 10px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
   margin-top: 300px;
+  position: relative;
+}
+
+.progress-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0 5px;
+  margin-top: 25px;
+  margin-right: 50px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  cursor: pointer;
+  overflow: visible;
+  position: relative;
+}
+
+.progress {
+  height: 100%;
+  background: #ff6347;
+  border-radius: 2px;
+  position: relative;
+  transition: width 0.1s linear;
+}
+
+.progress::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background: #ff6347;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.progress-bar:hover .progress::after {
+  opacity: 1;
+}
+
+.time-info {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  margin-top: 5px;
 }
 
 .play-label {
@@ -453,72 +515,75 @@
   }
 }
 
-
-/* Progress bar styling */
-.progress-bar {
-  flex: 1;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 5px;
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.progress {
-  height: 100%;
-  background: #ff6347;
-  transition: width 0.2s ease;
-}
-
-.time-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 5px;
-}
-
 .swipe-buttons {
   display: flex;
   justify-content: center;
-  gap: 30px;
+  gap: 40px;
   margin-top: 20px;
   padding: 0 20px 20px;
 }
 
 .swipe-button {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
   border: none;
   border-radius: 50%;
-  width: 70px;
-  height: 70px;
+  width: 60px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 24px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.swipe-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .swipe-button:hover {
   transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.swipe-button:hover::before {
+  opacity: 1;
 }
 
 .swipe-button.dislike {
-  background: rgba(255, 70, 110, 0.3);
+  background: rgba(255, 70, 110, 0.1);
+  color: rgba(255, 70, 110, 0.8);
 }
 
 .swipe-button.dislike:hover {
-  background: rgba(255, 70, 110, 0.4);
+  background: rgba(255, 70, 110, 0.2);
+  color: rgba(255, 70, 110, 1);
 }
 
 .swipe-button.like {
-  background: rgba(30, 215, 96, 0.3);
+  background: rgba(30, 215, 96, 0.1);
+  color: rgba(30, 215, 96, 0.8);
 }
 
 .swipe-button.like:hover {
-  background: rgba(30, 215, 96, 0.4);
+  background: rgba(30, 215, 96, 0.2);
+  color: rgba(30, 215, 96, 1);
+}
+
+.swipe-button:active {
+  transform: scale(0.95);
 }
 
 .exit-button {
@@ -708,5 +773,20 @@
 
   .sidebar-toggle {
     display: none;
+  }
+}
+
+@keyframes wave {
+  0% {
+    height: 20%;
+    transform: scaleY(1);
+  }
+  50% {
+    height: 100%;
+    transform: scaleY(1.2);
+  }
+  100% {
+    height: 20%;
+    transform: scaleY(1);
   }
 }
