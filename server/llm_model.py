@@ -11,20 +11,22 @@ import json
 from groq import Groq
 from pydantic import BaseModel
 from typing import List, Dict, Any
+import traceback
 
-class TrackSchema(BaseModel):
-    name: str
-    artist: str
+import os 
+import base64
+from requests import post, get
+import json
+from tqdm import tqdm
+from groq import Groq
 
-class PlaylistRecommendationSchema(BaseModel):
-    playlist_name: str
-    tracks: List[TrackSchema]
-
-class SpotifyRecommendationsSchema(BaseModel):
-    playlists: List[PlaylistRecommendationSchema]
-
+class GlobalVariables:
+    def __init__(self):
+        self.tracks = None
+        self.music = None
 class SpotifyAPI:
     def __init__(self):
+        from dotenv import load_dotenv
         load_dotenv()
         self.client_id = os.getenv("SPOTIFY_CLIENT_ID")
         self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
@@ -88,10 +90,6 @@ class SpotifyAPI:
         Input: playlist_id (string), auth_token (string)
         Output: List of track dictionaries [{'name': ..., 'artist': ..., 'album': ...}, ...]
         """
-        # Authenticate with Spotify API
-        # Make GET request to /playlists/{playlist_id}/tracks
-        # Parse response JSON for track details (name, artist, album)
-        # Return list of tracks
         tracks = []
         url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
         headers = self.get_auth_header(auth_token)
@@ -153,134 +151,184 @@ class PlaylistManager:
         
 class RecommendationManager:
     def __init__(self):
+        from dotenv import load_dotenv
         load_dotenv()
         self.api_key = os.getenv("GROQ_API_KEY")
-        self.model = 'llama3-70b-8192'
+        self.model = 'llama3-8b-8192'
         self.combinator = PlaylistManager()
         self.groq = Groq(api_key=self.api_key)
         self.ai_response = None
+        self.storage = GlobalVariables()
     
-    def create_recommendation_prompt(self) -> SpotifyRecommendationsSchema:
+    def create_recommendation_prompt(self): #! <--- Found key error the more recommended songs, the llm will spazz and not correctly output. Keep it a max of 5 songs 
         """
-        Creates recommendations for playlists using Groq AI.
-        
-        Returns:
-            SpotifyRecommendationsSchema: Validated recommendations for playlists
-        """
-        playlists = self.combinator.combining_playlist_and_track()
-        if isinstance(playlists, str):
-            print("Unexpected format: Ensure the function returns a dictionary.")
-            return None
-        
-        summarized_playlists = []
-        names = set()
-        artist_name = "name"
-        playlist_items = list(playlists.items())
-        
-        for playlist_name, tracks in playlist_items:
-            for artist in tracks:
-                if artist_name in artist:
-                    names.add(artist[artist_name])
-            
-            track_count = len(tracks)
-            genres = "varied genres"
-            mood = "energetic, chill, or emotional mix"
-            
-            summarized_playlists.append(
-                f"**{playlist_name}**: {track_count} songs, featuring artists like {', '.join(list(names)[:5])}. "
-                f"The overall vibe is {mood} with {genres}."
-            )
-        
-        playlist_summary = "\n".join(summarized_playlists)
-        
-        chat_completion = self.groq.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a music recommendation system that outputs playlist recommendations in JSON.\n"
-                    f" The JSON object must use the schema: {json.dumps(SpotifyRecommendationsSchema.model_json_schema(), indent=2)}"
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        "Here is a summary of all user playlists, including key artists and overall mood:\n\n"
-                        f"{playlist_summary}\n\n"
-                        "Based on these playlists, recommend **10 new songs per playlist** that align with the overall vibe. "
-                        "Ensure that none of the recommended songs are already in the playlists. "
-                        "Ensure that recommended songs are from the same genre or similar genres, and are not already in another recommended playlist. "
-                        "Include a mix of popular and lesser-known artists. The most important feature is to ensure that recommended songs do NOT show up more than once in the recommendations overall."
-                    )
-                }
-            ],
-            model=self.model,
-            max_tokens=8000,
-            temperature=0.7,
-            stream=False,
-            response_format={"type": "json_object"},
-        )
-        
-        return SpotifyRecommendationsSchema.model_validate_json(chat_completion.choices[0].message.content)
-
-    def formating_of_recommendations(self):
-        """
-        Formats recommendations into JSON structure for the frontend.
-        Input: List of recommended songs
-        Output: JSON response structure
-        """
-        
-        if not hasattr(self, 'ai_response') or not self.ai_response:
-            print("No recommendations available. Running create_recommendation_prompt first.")
-            self.ai_response = self.create_recommendation_prompt()
-        spotify_lookup_tracks = {}
-        for playlist_rec in self.ai_response.playlists:
-            playlist_id = playlist_rec.playlist_name.replace(' ', '_').lower()
-            tracks = [
-                {
-                    "track_name": track.name,
-                    "artist_name": track.artist
-                }
-                for track in playlist_rec.tracks
-            ]
-            
-            spotify_lookup_tracks[playlist_id] = tracks
-        self.spotify_lookup_tracks = spotify_lookup_tracks
-        
-        return spotify_lookup_tracks
-        
-class SendingRecommendations: #! <--- For some reason this class is not working, causes error within send_recommendations function...
-    def __init__(self):
-        self.recommendation_manager = RecommendationManager()
-
-    def send_recommendations(self):
-        """
-        Sends recommendations to Spotify API to get songs back.
-        Input: None
-        Output: JSON response structure
+        Enhanced method with more robust error handling and debugging
         """
         try:
-            recommendations = self.recommendation_manager.formating_of_recommendations()
-            if recommendations is None:
-                print("No recommendations generated.")
+            playlists = self.combinator.combining_playlist_and_track()
+            if isinstance(playlists, dict):
+                print("Playlists Found:")
+                for name, tracks in playlists.items():
+                    print(f"- {name}: {len(tracks)} tracks")
+            else:
+                print("Playlist retrieval returned non-dictionary type:", type(playlists))
                 return None
-            return recommendations
-        
+            prompt = (
+                "I have these music playlists:\n\n"
+                + "\n".join(
+                    f"- {name}: {len(tracks)} tracks"
+                    for name, tracks in playlists.items()
+                )
+                + "\n\nProvide a minimum of 5 song recommendations for each playlist.\n"
+                "IMPORTANT REQUIREMENTS:\n"
+                "1. Recommend songs NOT in the existing playlists\n"
+                "2. Each recommendation should be unique\n"
+                "3. Match the mood and genre of each playlist\n\n"
+                "RESPOND EXACTLY IN THIS JSON FORMAT:\n"
+                "{\n"
+                "  \"Playlist Name 1\": [\n"
+                "    {\"name\": \"Song1\", \"artist\": \"Artist1\"},\n"
+                "    {\"name\": \"Song2\", \"artist\": \"Artist2\"}\n"
+                "  ],\n"
+                "  \"Playlist Name 2\": [\n"
+                "    {\"name\": \"Song3\", \"artist\": \"Artist3\"}\n"
+                "  ]\n"
+                "}"
+            )
+
+            chat_completion = self.groq.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a precise music recommendation AI. ONLY return valid JSON."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                model=self.model,
+                temperature=0.7,
+                max_tokens=8000,
+                response_format={"type": "json_object"},  
+                stream=False,
+            )
+            full_response = chat_completion.choices[0].message.content
+            print("\n--- RAW AI RESPONSE ---")
+            print(full_response)
+            print("--- END RAW RESPONSE ---\n")
+            try:
+                parsed_response = json.loads(full_response)
+                return parsed_response
+            except json.JSONDecodeError as json_err:
+                print("JSON PARSING ERROR:")
+                print(json_err)
+                print("Problematic JSON content:", full_response)
+                return None
+
         except Exception as e:
-            print(f"Error in send_recommendations: {e}")
+            print("UNEXPECTED ERROR IN RECOMMENDATION GENERATION:")
+            traceback.print_exc()
             return None
+
+    def format_recommendations(self):
+        """
+        Enhanced recommendation formatting with extensive error handling
+        """
+        try:
+            if not hasattr(self, 'ai_response') or not self.ai_response:
+                print("Generating recommendations...")
+                self.ai_response = self.create_recommendation_prompt()
+            if not self.ai_response:
+                print("No recommendations could be generated.")
+                return {}
+            formatted_tracks = {}
+            for playlist_name, tracks in self.ai_response.items():
+                playlist_id = playlist_name.replace(' ', '_').lower()
+                formatted_tracks[playlist_id] = [
+                    {
+                        "track_name": track.get('name', 'Unknown Track'),
+                        "artist_name": track.get('artist', 'Unknown Artist')
+                    } 
+                    for track in tracks
+                ]
+            self.storage.tracks = formatted_tracks
+            return self.storage.tracks
+
+        except Exception as e:
+            print("ERROR IN FORMATTING RECOMMENDATIONS:")
+            traceback.print_exc()
+            return {}
+class SpotifyManagement:
+    def __init__(self):
+        self.recommendation_manager = RecommendationManager()
+        self.spotify_api = SpotifyAPI()
+        self.token = self.spotify_api.token
+        self.storage_manager = GlobalVariables()
+    
+    def get_tracks(self):
+        """
+        Retrieves tracks from the Spotify API.
+        Returns:
+            List of dictionaries with track details.
+        """
+        storage = self.storage_manager.tracks
+        playlists = self.recommendation_manager.format_recommendations()
+        storage = playlists
+        transformed_playlists = storage
+        if not transformed_playlists:
+            print("No recommendations available.")
+            return []
         
+        all_tracks = []
+        for key, value in transformed_playlists.items():
+            for track in value:
+                track_name = track['track_name']
+                artist_name = track['artist_name']
+                all_tracks.append({
+                    "name": track_name,
+                    "artist": artist_name
+                })
         
+        self.storage_manager.music = all_tracks
+        print("Tracks retrieved successfully.")
+        return self.storage_manager.music
+    
+    def fetch_user_songs(self): #! <--- Working on searching for song id
+        fetched_songs = []
+        url = "https://api.spotify.com/v1/search"
+        for song in self.storage_manager.music:
+            pass
+            
+        # playlist = []
+        # url = "https://api.spotify.com/v1/me/playlists"
+        # headers = self.get_auth_header(token)
+        # result = get(url, headers=headers)
+        # json_result = json.loads(result.content)['items']
+        # if len(json_result) == 0:
+        #     return 'No playlists found'
+        # else:
+        #     for playlist in json_result:
+        #         name = playlist['name']
+        #         id = playlist['id']
+        #         final = ({"name": name, "id": id})
+        #         playlist.append(final)
+        # return playlist
+            
+    
 if __name__ == '__main__':
     # pm = PlaylistManager()
     # result = pm.combining_playlist_and_track()
     # print(result)
     
     # ai = RecommendationManager()
-    # result = ai.formating_of_recommendations()
+    # result = ai.format_recommendations()
     # print(result)
     
-    pb = SendingRecommendations()
-    result = pb.send_recommendations()
+    sm = SpotifyManagement()
+    result = sm.get_tracks()
     print(result)
+    
     
     # 1. "The Definition" (various album versions)
     # 2. "War of Hearts"
@@ -291,3 +339,31 @@ if __name__ == '__main__':
     # 7. "Munny Right"
     # 8. "Human"
     # 9. "Carry Your Throne"
+    
+    # {
+#   "Xavier Playlist": [
+#     {"name": "Lemonade", "artist": "Internet Money ft. Don Toliver & Gunna"},
+#     {"name": "Peaches", "artist": "Justin Bieber ft. Daniel Caesar & Giveon"},
+#     {"name": "WAP", "artist": "Cardi B ft. Megan Thee Stallion"},
+#     {"name": "Savage", "artist": "Megan Thee Stallion ft. Beyoncé"},
+#     {"name": "Body", "artist": "Tion Wayne ft. Russ Millions"},
+#     {"name": "Kiss Me More", "artist": "Doja Cat ft. SZA"},
+#     {"name": "Traitor", "artist": "Twenty One Pilots"},
+#     {"name": "Good 4 U", "artist": "Olivia Rodrigo"},
+#     {"name": "Stay", "artist": "The Kid LAROI & Justin Bieber"},
+#     {"name": "MONTERO (Call Me By Your Name)", "artist": "Lil Nas X"}
+#   ],
+#   "Vibes Like Stuck": [
+#     {"name": "Dance Monkey", "artist": "Tones and I"},
+#     {"name": "Roses", "artist": "SAINt JHN"},
+#     {"name": "Blinding Lights", "artist": "The Weeknd"},
+#     {"name": "Before You Go", "artist": "Lauv"},
+#     {"name": "Sucker", "artist": "Jonas Brothers"},
+#     {"name": "Senorita", "artist": "Shawn Mendes & Camila Cabello"},
+#     {"name": "Eastside", "artist": "Benny Blanco, Halsey, & Khalid"},
+#     {"name": "High Hopes", "artist": "Panic! At The Disco"},
+#     {"name": "Truth Hurts", "artist": "Lizzo"},
+#     {"name": "Old Town Road", "artist": "Lil Nas X ft. Billy Ray Cyrus"}
+#   ],
+
+#  rgjs2003
