@@ -8,6 +8,20 @@ from ollama import chat
 from ollama import ChatResponse
 import re
 import json
+from groq import Groq
+from pydantic import BaseModel
+from typing import List, Dict, Any
+
+class TrackSchema(BaseModel):
+    name: str
+    artist: str
+
+class PlaylistRecommendationSchema(BaseModel):
+    playlist_name: str
+    tracks: List[TrackSchema]
+
+class SpotifyRecommendationsSchema(BaseModel):
+    playlists: List[PlaylistRecommendationSchema]
 
 class SpotifyAPI:
     def __init__(self):
@@ -139,96 +153,133 @@ class PlaylistManager:
         
 class RecommendationManager:
     def __init__(self):
-        self.model = 'deepseek-r1'
+        load_dotenv()
+        self.api_key = os.getenv("GROQ_API_KEY")
+        self.model = 'llama3-70b-8192'
         self.combinator = PlaylistManager()
+        self.groq = Groq(api_key=self.api_key)
         self.ai_response = None
     
-    def create_recommendation_prompt(self): #! Need to test this function not to sure if ai is working properly...
+    def create_recommendation_prompt(self) -> SpotifyRecommendationsSchema:
         """
-        Creates a natural language prompt from playlist tracks.
-        Input: List of track dictionaries
-        Output: Formatted string prompt
+        Creates recommendations for playlists using Groq AI.
+        
+        Returns:
+            SpotifyRecommendationsSchema: Validated recommendations for playlists
         """
         playlists = self.combinator.combining_playlist_and_track()
-
         if isinstance(playlists, str):
             print("Unexpected format: Ensure the function returns a dictionary.")
-            return None  
+            return None
         
         summarized_playlists = []
         names = set()
         artist_name = "name"
-        
         playlist_items = list(playlists.items())
+        
         for playlist_name, tracks in playlist_items:
             for artist in tracks:
                 if artist_name in artist:
                     names.add(artist[artist_name])
-            track_count = len(tracks) 
-            genres = "varied genres"  
-            mood = "energetic, chill, or emotional mix" 
-
+            
+            track_count = len(tracks)
+            genres = "varied genres"
+            mood = "energetic, chill, or emotional mix"
+            
             summarized_playlists.append(
                 f"**{playlist_name}**: {track_count} songs, featuring artists like {', '.join(list(names)[:5])}. "
                 f"The overall vibe is {mood} with {genres}."
             )
-
+        
         playlist_summary = "\n".join(summarized_playlists)
         
-        print("\nCreating recommendation prompt, this will take time please wait patiently...")
+        chat_completion = self.groq.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a music recommendation system that outputs playlist recommendations in JSON.\n"
+                    f" The JSON object must use the schema: {json.dumps(SpotifyRecommendationsSchema.model_json_schema(), indent=2)}"
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Here is a summary of all user playlists, including key artists and overall mood:\n\n"
+                        f"{playlist_summary}\n\n"
+                        "Based on these playlists, recommend **10 new songs per playlist** that align with the overall vibe. "
+                        "Ensure that none of the recommended songs are already in the playlists. "
+                        "Ensure that recommended songs are from the same genre or similar genres, and are not already in another recommended playlist. "
+                        "Include a mix of popular and lesser-known artists. The most important feature is to ensure that recommended songs do NOT show up more than once in the recommendations overall."
+                    )
+                }
+            ],
+            model=self.model,
+            max_tokens=8000,
+            temperature=0.7,
+            stream=False,
+            response_format={"type": "json_object"},
+        )
         
-        response: ChatResponse = chat(model=self.model, messages=[
-            {
-                "role": "user",
-                "content": (
-                    "Here is a summary of all user playlists, including key artists and overall mood:\n\n"
-                    f"{playlist_summary}\n\n"
-                    "Based on these playlists, recommend **10 new songs per playlist** that align with the overall vibe. "
-                    "Ensure that none of the recommended songs are already in the playlists. "
-                    "Ensure that recommended songs are from the same genre or similar genres, and are not already in another recommended playlist. "
-                    "Include a mix of popular and lesser-known artists. The most important feature is to ensure that recommended songs do NOT show up more than once in the recommendations overall. "
-                    "Return results in a structured format, like the following; recommendations: [{\"name\": \"Song X\", \"artist\": \"Artist X\"}, ...]."
-                )
-            }
-        ])
-        
-        self.ai_response = response.message.content
-        return self.ai_response
-    
+        return SpotifyRecommendationsSchema.model_validate_json(chat_completion.choices[0].message.content)
+
     def formating_of_recommendations(self):
         """
         Formats recommendations into JSON structure for the frontend.
         Input: List of recommended songs
         Output: JSON response structure
         """
-        track_list = {}
         
-        self.ai_response = self.create_recommendation_prompt()
+        if not hasattr(self, 'ai_response') or not self.ai_response:
+            print("No recommendations available. Running create_recommendation_prompt first.")
+            self.ai_response = self.create_recommendation_prompt()
+        spotify_lookup_tracks = {}
+        for playlist_rec in self.ai_response.playlists:
+            playlist_id = playlist_rec.playlist_name.replace(' ', '_').lower()
+            tracks = [
+                {
+                    "track_name": track.name,
+                    "artist_name": track.artist
+                }
+                for track in playlist_rec.tracks
+            ]
+            
+            spotify_lookup_tracks[playlist_id] = tracks
+        self.spotify_lookup_tracks = spotify_lookup_tracks
         
-        print("\nFormatting recommendations, please wait patiently...")
-
-        # Extract playlist sections using regex
-        playlists = re.findall(r"### Playlist: (.*?)\n\*\*Recommendations:\*\*\s*\n(\[.*?\])", self.ai_response, re.DOTALL)
+        return spotify_lookup_tracks
         
-        print(playlists)
+class SendingRecommendations: #! <--- For some reason this class is not working, causes error within send_recommendations function...
+    def __init__(self):
+        self.recommendation_manager = RecommendationManager()
 
-        for playlist_name, songs_json in playlists:
-            try:
-                # Convert the song list from string to dictionary
-                track_list[playlist_name] = json.loads(songs_json)
-            except json.JSONDecodeError:
-                print(f"Error parsing JSON for playlist: {playlist_name}")
-
-        return {"recommendations": track_list}
-    
-
+    def send_recommendations(self):
+        """
+        Sends recommendations to Spotify API to get songs back.
+        Input: None
+        Output: JSON response structure
+        """
+        try:
+            recommendations = self.recommendation_manager.formating_of_recommendations()
+            if recommendations is None:
+                print("No recommendations generated.")
+                return None
+            return recommendations
+        
+        except Exception as e:
+            print(f"Error in send_recommendations: {e}")
+            return None
+        
+        
 if __name__ == '__main__':
     # pm = PlaylistManager()
     # result = pm.combining_playlist_and_track()
     # print(result)
     
-    ai = RecommendationManager()
-    result = ai.create_recommendation_prompt()
+    # ai = RecommendationManager()
+    # result = ai.formating_of_recommendations()
+    # print(result)
+    
+    pb = SendingRecommendations()
+    result = pb.send_recommendations()
     print(result)
     
     # 1. "The Definition" (various album versions)
