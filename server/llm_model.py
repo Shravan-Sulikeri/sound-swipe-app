@@ -17,6 +17,14 @@ from groq import Groq
 from urllib.parse import quote
 import re
 import urllib
+
+#**IMPORTANT** please read the all NOTES
+#NOTE: Feel free to test your own Spotify playlist if you have one, within the fetch_current_user function.
+#NOTE: In prod fetch_current_user function will be disabled and fetch_logged_in_user_playlist will be used but NEEDS to be connected to cookie login. 
+#NOTE: The prompt engineering for llm is spotty will recommend song more than once, take with grain of salt.
+#NOTE: When fetching track info errors will present, may notice 403 error simply do to not be able to get info not pertinent atm but will need to fix later.
+#NOTE: Will later need to get songs back from added playlist to formulate new spotify playlist. 
+#**
 class GlobalVariables:
     def __init__(self):
         self.tracks = None
@@ -65,7 +73,7 @@ class SpotifyAPI:
                 playlist.append(final)
         return playlist
     
-    def fetch_current_user_playlist(self, token): #! Need to get AUTH working for this function
+    def fetch_logged_in_user_playlist(self, token): #! Need to get AUTH working for this function
         playlist = []
         url = "https://api.spotify.com/v1/me/playlists"
         headers = self.get_auth_header(token)

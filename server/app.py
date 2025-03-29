@@ -12,7 +12,7 @@ CORS(app)
 # Initialize the Spotify manager and generate songs immediately
 print("Initializing Spotify manager...")
 spotify_manager = SpotifyManagement()
-print("Generating initial song recommendations...")
+print("Generating initial song recommendations, please be patient...\n")
 preloaded_songs = spotify_manager.fetch_user_songs()
 print(f"Generated {len(preloaded_songs)} songs successfully!")
 
@@ -63,7 +63,6 @@ def get_playlists():
         }), 500
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT'))
     print(f"Server starting on port {port}...")
-    # Disable debug mode to prevent automatic restarts
     app.run(host='0.0.0.0', port=port, debug=False)
