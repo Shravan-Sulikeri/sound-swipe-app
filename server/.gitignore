@@ -2,5 +2,6 @@
 *.pkl
 *.csv
 
-# data set folder
+# data set folder/pycache
 datasets/
+__pycache__/

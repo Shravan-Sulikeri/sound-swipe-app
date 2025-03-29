@@ -80,7 +80,7 @@ const Home = () => {
 
         const x = e.clientX - dragStart.x;
         const y = e.clientY - dragStart.y;
-        const rotate = x * 0.1; // Rotate based on drag distance
+        const rotate = x * 0.1; 
 
         setCardTransform({ x, y, rotate });
     };

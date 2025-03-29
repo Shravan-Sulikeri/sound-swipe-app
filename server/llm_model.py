@@ -4,29 +4,23 @@ import base64
 from requests import post, get
 import json
 from tqdm import tqdm
-from ollama import chat
-from ollama import ChatResponse
-import re
 import json
 from groq import Groq
-from pydantic import BaseModel
-from typing import List, Dict, Any
 import traceback
-
 import os 
 import base64
 from requests import post, get
 import json
 from tqdm import tqdm
 from groq import Groq
-
+from urllib.parse import quote
 class GlobalVariables:
     def __init__(self):
         self.tracks = None
         self.music = None
+        self.finalized_data = None
 class SpotifyAPI:
     def __init__(self):
-        from dotenv import load_dotenv
         load_dotenv()
         self.client_id = os.getenv("SPOTIFY_CLIENT_ID")
         self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
@@ -119,7 +113,7 @@ class PlaylistManager:
         
         """
         playlist_tracks= {}
-        x = input("1 -> for dictionary format or 2 -> for structured format: ")
+        x = input("1 -> for dictionary format or 2 -> for structured format: ") #! Right now input is required lets change so input 1 will always be used in prod.
         x = int(x)
         if (x == 2):
             print("\nRetrieving your playlist and tracks, please wait patiently...\n")
@@ -151,7 +145,6 @@ class PlaylistManager:
         
 class RecommendationManager:
     def __init__(self):
-        from dotenv import load_dotenv
         load_dotenv()
         self.api_key = os.getenv("GROQ_API_KEY")
         self.model = 'llama3-8b-8192'
@@ -160,7 +153,7 @@ class RecommendationManager:
         self.ai_response = None
         self.storage = GlobalVariables()
     
-    def create_recommendation_prompt(self): #! <--- Found key error the more recommended songs, the llm will spazz and not correctly output. Keep it a max of 5 songs 
+    def create_recommendation_prompt(self): #! <--- Found key error the more recommended songs, the llm will spazz and not correctly output. Keep it a max of 5 songs, may need to add dynamic altering for larger playlist 
         """
         Enhanced method with more robust error handling and debugging
         """
@@ -179,11 +172,13 @@ class RecommendationManager:
                     f"- {name}: {len(tracks)} tracks"
                     for name, tracks in playlists.items()
                 )
-                + "\n\nProvide a minimum of 5 song recommendations for each playlist.\n"
+                + "\n\nProvide a minimum of 3 song recommendations for each playlist.\n" #! CRITICAL <---- prompt engineering is not sound recommendations are on avg %50-60% correct lets work on getting closer to %80 approval
                 "IMPORTANT REQUIREMENTS:\n"
                 "1. Recommend songs NOT in the existing playlists\n"
                 "2. Each recommendation should be unique\n"
-                "3. Match the mood and genre of each playlist\n\n"
+                "3. Prioritize the mood and styles of the song in the playlist to match\n\n"
+                "4. Songs that have been recommended for a previous playlist should NOT show up as recommendation for another playlist\n"
+                "5. Songs should be a combination of new and old, popular and not as well\n"
                 "RESPOND EXACTLY IN THIS JSON FORMAT:\n"
                 "{\n"
                 "  \"Playlist Name 1\": [\n"
@@ -265,10 +260,11 @@ class SpotifyManagement:
         self.spotify_api = SpotifyAPI()
         self.token = self.spotify_api.token
         self.storage_manager = GlobalVariables()
+        self.tracks = None
     
     def get_tracks(self):
         """
-        Retrieves tracks from the Spotify API.
+        Retrieves tracks from the llm prompting.
         Returns:
             List of dictionaries with track details.
         """
@@ -294,29 +290,65 @@ class SpotifyManagement:
         print("Tracks retrieved successfully.")
         return self.storage_manager.music
     
-    def fetch_user_songs(self): #! <--- Working on searching for song id
-        fetched_songs = []
-        url = "https://api.spotify.com/v1/search"
-        for song in self.storage_manager.music:
-            pass
-            
-        # playlist = []
-        # url = "https://api.spotify.com/v1/me/playlists"
-        # headers = self.get_auth_header(token)
-        # result = get(url, headers=headers)
-        # json_result = json.loads(result.content)['items']
-        # if len(json_result) == 0:
-        #     return 'No playlists found'
-        # else:
-        #     for playlist in json_result:
-        #         name = playlist['name']
-        #         id = playlist['id']
-        #         final = ({"name": name, "id": id})
-        #         playlist.append(final)
-        # return playlist
-            
+    def get_deezer_track_info(self, track_name, artist_name=''): #! This is the new method for getting data as alt to spotify safer and more accessible
+        """
+        Takes track info and uses deezer api to get necessary info that will be used when sending to frontend. 
+        Returns:
+            Track data details as a list.
+        """
+        query = f"track:'{quote(track_name)}'"
+        if artist_name:
+            query += f" artist:'{quote(artist_name)}'"
+        
+        search_url = f"https://api.deezer.com/search?q={query}&limit=1"
+        response = get(search_url)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('data') and len(data['data']) > 0:
+                return data['data'][0]
+        return None
+    
+    def fetch_user_songs(self): #! This new fetching_users implementation uses deezer api, this will still work when sinking back to front end no worries
+        """
+        Takes data from get_tracks() function and uses deezer api to get rest of necessary data, ie. preview_url, cover_art, etc
+        will later be stored and sent to frontend
+
+        Returns:
+            Track data as a dictionary.
+        """
+        self.tracks = self.get_tracks()
+        print('\nFetching track data using deezer api instead of spotify, will take time so please be patient...\n')
+        if not self.tracks:
+            return []
+        track_data = []
+        for track in self.tracks:
+            try:
+                deezer_result = self.get_deezer_track_info(
+                    track['name'],
+                    track.get('artist', '')
+                )
+                
+                if not deezer_result:
+                    continue
+                    
+                track_data.append({
+                    'name': deezer_result['title'],
+                    'id': deezer_result['id'],
+                    'image': deezer_result['album']['cover_xl'],
+                    'artist': deezer_result['artist']['name'],
+                    'preview_url': deezer_result['preview'],
+                    'deezer_url': deezer_result['link']
+                })
+                
+            except Exception as e:
+                print(f"Error processing {track['name']}: {e}")
+                continue
+        self.storage_manager.finalized_data = track_data
+        return self.storage_manager.finalized_data
     
 if __name__ == '__main__':
+    
     # pm = PlaylistManager()
     # result = pm.combining_playlist_and_track()
     # print(result)
@@ -326,22 +358,11 @@ if __name__ == '__main__':
     # print(result)
     
     sm = SpotifyManagement()
-    result = sm.get_tracks()
+    result = sm.fetch_user_songs()
     print(result)
     
-    
-    # 1. "The Definition" (various album versions)
-    # 2. "War of Hearts"
-    # 3. "Ooh"
-    # 4. "Woke The F*ck Up"
-    # 5. "All Time Low"
-    # 6. "Simple & Sweet"
-    # 7. "Munny Right"
-    # 8. "Human"
-    # 9. "Carry Your Throne"
-    
     # {
-#   "Xavier Playlist": [
+#   Example_Format ---> {"Xavier Playlist": [
 #     {"name": "Lemonade", "artist": "Internet Money ft. Don Toliver & Gunna"},
 #     {"name": "Peaches", "artist": "Justin Bieber ft. Daniel Caesar & Giveon"},
 #     {"name": "WAP", "artist": "Cardi B ft. Megan Thee Stallion"},
@@ -364,6 +385,6 @@ if __name__ == '__main__':
 #     {"name": "High Hopes", "artist": "Panic! At The Disco"},
 #     {"name": "Truth Hurts", "artist": "Lizzo"},
 #     {"name": "Old Town Road", "artist": "Lil Nas X ft. Billy Ray Cyrus"}
-#   ],
+#   ],}
 
-#  rgjs2003
+#  Test_User_Name: {rgjs2003}
