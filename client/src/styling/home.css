@@ -314,16 +314,23 @@
   justify-content: space-between;
 }
 
-.song-title {
-  font-size: 1.8rem;
-  font-weight: 600;
+.song-details {
+  text-align: center;
+  margin-bottom: 20px;
   color: white;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.song-title {
+  font-size: 24px;
+  margin-bottom: 8px;
+  font-weight: bold;
 }
 
 .artist-name {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 1.2rem;
-  margin-top: -15px;
+  font-size: 18px;
+  opacity: 0.9;
+  margin: 0;
 }
 
 .waveform-container,

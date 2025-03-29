@@ -58,6 +58,7 @@ if __name__ == "__main__":
     print(f"Status: {recommendations['status']}")
     print(f"Message: {recommendations['message']}")
     print(f"Total recommendations: {len(recommendations.get('data', []))}")
+    print(f"Data: {recommendations.get('data')} ")
     
     # Get playlists
     # print("\nFetching playlists...")

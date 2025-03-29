@@ -9,7 +9,12 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app) 
 
+# Initialize the Spotify manager and generate songs immediately
+print("Initializing Spotify manager...")
 spotify_manager = SpotifyManagement()
+print("Generating initial song recommendations...")
+preloaded_songs = spotify_manager.fetch_user_songs()
+print(f"Generated {len(preloaded_songs)} songs successfully!")
 
 @app.route('/api/recommendations', methods=['GET'])
 def get_recommendations():
@@ -17,26 +22,14 @@ def get_recommendations():
     Endpoint to get music recommendations based on user's Spotify playlists
     """
     try:
-        recommendations = spotify_manager.fetch_user_songs()
-        
-        if not recommendations:
-            return jsonify({
-                'status': 'error',
-                'message': 'Could not generate recommendations',
-                'data': []
-            }), 404
-        
         return jsonify({
             'status': 'success',
-            'message': 'Recommendations generated successfully',
-            'data': recommendations
+            'data': preloaded_songs
         })
-    
     except Exception as e:
         return jsonify({
             'status': 'error',
-            'message': f'Error generating recommendations: {str(e)}',
-            'data': []
+            'message': str(e)
         }), 500
 
 @app.route('/api/playlists', methods=['GET'])
@@ -70,5 +63,7 @@ def get_playlists():
         }), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    port = int(os.getenv('PORT', 5000))
+    print(f"Server starting on port {port}...")
+    # Disable debug mode to prevent automatic restarts
+    app.run(host='0.0.0.0', port=port, debug=False)

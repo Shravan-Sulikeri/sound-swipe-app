@@ -1,17 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import '../styling/home.css';
-import sound from '../assets/Tyler, The Creator - Glitter (Audio).mp3';
+import { getSampleTracks, getRecommendations } from '../services/api';
 
 const Home = () => {
     const [isSwiping, setIsSwiping] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [playlists, setPlaylists] = useState([]);
-    const [currentSong, setCurrentSong] = useState({
-        title: 'Glitter',
-        artist: 'Tyler, The Creator',
-        coverImage: require('../assets/Tyler 20the 20Creator- 20Flower 20boy.png'),
-        previewUrl: sound,
-    });
+    const [currentSong, setCurrentSong] = useState(null);
+    const [songQueue, setSongQueue] = useState([]);
+    const [likedSongs, setLikedSongs] = useState([]);
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
@@ -20,10 +17,31 @@ const Home = () => {
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [cardTransform, setCardTransform] = useState({ x: 0, y: 0, rotate: 0 });
     const [isAdd, setIsAdd] = useState(false);
-    const [beat, setBeat] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
 
     const audioRef = useRef(null);
     const cardRef = useRef(null);
+
+    // Initialize songs when component mounts
+    useEffect(() => {
+        const initializeSongs = async () => {
+            setIsLoading(true);
+            try {
+                const initialSongs = await getSampleTracks(20);
+                if (initialSongs && initialSongs.length > 0) {
+                    setCurrentSong(initialSongs[0]);
+                    setSongQueue(initialSongs.slice(1));
+                } else {
+                    console.error('No songs received from the API');
+                }
+            } catch (error) {
+                console.error('Error loading initial songs:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        initializeSongs();
+    }, []);
 
     const handleLogout = () => {
         window.location.href = "http://localhost:3001/logout";
@@ -53,18 +71,69 @@ const Home = () => {
         setIsSidebarCollapsed(!isSidebarCollapsed);
     };
 
-    const handleSwipe = (direction) => {
+    const handleSwipe = async (direction) => {
         const card = cardRef.current;
-        if (card) {
-            card.classList.add(`swiped-${direction}`);
-            setTimeout(() => {
-                // TODO: Implement swipe logic
-                console.log(`Swiped ${direction}`);
-                // Reset card position
-                card.classList.remove(`swiped-${direction}`);
-                setCardTransform({ x: 0, y: 0, rotate: 0 });
-            }, 300);
+        if (!card || !currentSong) return;
+
+        card.classList.add(`swiped-${direction}`);
+        
+        if (direction === 'right') {
+            setLikedSongs(prev => [...prev, currentSong]);
         }
+
+        // Reset audio
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setIsPlaying(false);
+        }
+
+        // Get next song from queue
+        const nextSong = songQueue[0];
+        if (nextSong) {
+            setCurrentSong(nextSong);
+            setSongQueue(prev => prev.slice(1));
+            // Autoplay new song
+            setTimeout(() => {
+                if (audioRef.current) {
+                    audioRef.current.play();
+                    setIsPlaying(true);
+                }
+            }, 300);
+        } else {
+            // If queue is empty, get new recommendations
+            setIsLoading(true);
+            try {
+                const newRecommendations = await getRecommendations(
+                    likedSongs.map(song => song.id),
+                    20
+                );
+                if (newRecommendations && newRecommendations.length > 0) {
+                    setCurrentSong(newRecommendations[0]);
+                    setSongQueue(newRecommendations.slice(1));
+                    // Autoplay new song
+                    setTimeout(() => {
+                        if (audioRef.current) {
+                            audioRef.current.play();
+                            setIsPlaying(true);
+                        }
+                    }, 300);
+                } else {
+                    setCurrentSong(null);
+                    setSongQueue([]);
+                }
+            } catch (error) {
+                console.error('Error getting recommendations:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        // Reset card position after animation
+        setTimeout(() => {
+            card.classList.remove(`swiped-${direction}`);
+            setCardTransform({ x: 0, y: 0, rotate: 0 });
+        }, 300);
     };
 
     const handleDragStart = (e) => {
@@ -80,7 +149,7 @@ const Home = () => {
 
         const x = e.clientX - dragStart.x;
         const y = e.clientY - dragStart.y;
-        const rotate = x * 0.1; 
+        const rotate = x * 0.1;
 
         setCardTransform({ x, y, rotate });
     };
@@ -113,12 +182,6 @@ const Home = () => {
             const currentTime = audioRef.current.currentTime;
             setCurrentTime(currentTime);
             setProgress((currentTime / audioRef.current.duration) * 100);
-            
-            // Calculate beat based on current time (assuming 120 BPM)
-            const bpm = 120;
-            const beatInterval = 60 / bpm;
-            const currentBeat = Math.floor(currentTime / beatInterval);
-            setBeat(currentBeat);
         }
     };
 
@@ -143,6 +206,28 @@ const Home = () => {
             audioRef.current.currentTime = percentage * audioRef.current.duration;
         }
     };
+
+    if (isLoading) {
+        return (
+            <div className="home-container">
+                <div className="welcome-section">
+                    <h1>Loading...</h1>
+                    <p>Getting your next song ready...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!currentSong) {
+        return (
+            <div className="home-container">
+                <div className="welcome-section">
+                    <h1>No more songs to swipe!</h1>
+                    <p>Try refreshing or starting over.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="home-container">
@@ -188,12 +273,12 @@ const Home = () => {
             {/* Main content */}
             <main className={`main-content ${isSidebarCollapsed ? 'expanded' : ''}`}>
                 <section className={`welcome-section ${isSwiping ? 'hidden' : ''}`}>
-                            <h1>Welcome to 
+                    <h1>Welcome to 
                         <img alt="logo" 
                             className="logo"  
                             style={{ marginLeft: '10px', verticalAlign: 'middle', objectFit: 'contain'}}
                             src={require('../assets/soundswipe-logo-zip-file/png/logo-no-background.png')}/>
-                        </h1>
+                    </h1>
                     <p className='paragraph-text'>Discover new music by swiping right on songs you like</p>
                     {!isSwiping && (
                         <button className="start-button" onClick={handleStartSwiping}>
@@ -207,22 +292,20 @@ const Home = () => {
                         ref={cardRef}
                         className={`song-card ${isDragging ? 'swiping' : ''}`}
                         style={{
-                            transform: `translate(${cardTransform.x}px, ${cardTransform.y}px) rotate(${cardTransform.rotate}deg)`
+                            transform: `translate(${cardTransform.x}px, ${cardTransform.y}px) rotate(${cardTransform.rotate}deg)`,
+                            backgroundImage: `url(${currentSong.coverImage})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
                         }}
                         onMouseDown={handleDragStart}
                         onMouseMove={handleDragMove}
                         onMouseUp={handleDragEnd}
                         onMouseLeave={handleDragEnd}
                     >
-                        <img 
-                            src={currentSong.coverImage} 
-                            alt={currentSong.title}
-                            className="song-image"
-                        />
                         <div className="song-info">
                             <div className='song-details'>
-                                <h2 className="song-title">{currentSong.title}</h2>
-                                <p className="artist-name">{currentSong.artist}</p>
+                                <h2 className="song-title">{currentSong.name}</h2>
+                                <p className="artist-name">{currentSong.artists}</p>
                             </div>
                             
                             <div className="audio-controls">

@@ -3,6 +3,7 @@ import os
 import base64
 from requests import post, get
 import json
+import requests
 from tqdm import tqdm
 import json
 from groq import Groq
@@ -14,6 +15,8 @@ import json
 from tqdm import tqdm
 from groq import Groq
 from urllib.parse import quote
+import re
+import urllib
 class GlobalVariables:
     def __init__(self):
         self.tracks = None
@@ -113,8 +116,8 @@ class PlaylistManager:
         
         """
         playlist_tracks= {}
-        x = input("1 -> for dictionary format or 2 -> for structured format: ") #! Right now input is required lets change so input 1 will always be used in prod.
-        x = int(x)
+        # x = input("1 -> for dictionary format or 2 -> for structured format: ") #! Right now input is required lets change so input 1 will always be used in prod.
+        x = 1
         if (x == 2):
             print("\nRetrieving your playlist and tracks, please wait patiently...\n")
             playlist = self.spotify_api.fetch_current_user_playlists(self.token)
@@ -147,7 +150,7 @@ class RecommendationManager:
     def __init__(self):
         load_dotenv()
         self.api_key = os.getenv("GROQ_API_KEY")
-        self.model = 'llama3-8b-8192'
+        self.model = 'llama-3.3-70b-versatile'
         self.combinator = PlaylistManager()
         self.groq = Groq(api_key=self.api_key)
         self.ai_response = None
@@ -177,7 +180,7 @@ class RecommendationManager:
                 "1. Recommend songs NOT in the existing playlists\n"
                 "2. Each recommendation should be unique\n"
                 "3. Prioritize the mood and styles of the song in the playlist to match\n\n"
-                "4. Songs that have been recommended for a previous playlist should NOT show up as recommendation for another playlist\n"
+                "4. Once a song has been recommended it should NOT be recommended again\n"
                 "5. Songs should be a combination of new and old, popular and not as well\n"
                 "RESPOND EXACTLY IN THIS JSON FORMAT:\n"
                 "{\n"
@@ -290,24 +293,85 @@ class SpotifyManagement:
         print("Tracks retrieved successfully.")
         return self.storage_manager.music
     
+    def simplify_track_name(self, track_name):
+        simplified = re.sub(r'\([^)]*\)', '', track_name)
+        simplified = re.sub(r'\[[^\]]*\]', '', simplified)
+        simplified = re.sub(r'[^\w\s]', '', simplified)
+        simplified = re.sub(r'\s+', ' ', simplified).strip()
+        return simplified
+    
+    def extract_primary_artist(self, artist_string):
+        feature_indicators = [
+            " feat. ", " ft. ", " featuring ", " with ", " & ",
+            " FEAT. ", " FT. ", " Feat. ", " Ft. ",
+            " (feat. ", " (ft. ", " (Feat. ", " (Ft. ",
+            " [feat. ", " [ft. ", " [Feat. ", " [Ft. "
+        ]
+        
+        for indicator in feature_indicators:
+            if indicator in artist_string:
+                return artist_string.split(indicator)[0].strip()
+        
+        return artist_string.strip()
+    
     def get_deezer_track_info(self, track_name, artist_name=''): #! This is the new method for getting data as alt to spotify safer and more accessible
         """
         Takes track info and uses deezer api to get necessary info that will be used when sending to frontend. 
         Returns:
             Track data details as a list.
         """
-        query = f"track:'{quote(track_name)}'"
-        if artist_name:
-            query += f" artist:'{quote(artist_name)}'"
+        try:
+            query = track_name
+            if artist_name:
+                query = f"{track_name} artist:\"{artist_name}\""
+            
+            url = f"https://api.deezer.com/search?q={urllib.parse.quote(query)}"
+            response = requests.get(url)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('data') and len(data['data']) > 0:
+                    return data['data'][0]
+                else:
+                    if artist_name:
+                        query = f"{track_name} {artist_name}"
+                        url = f"https://api.deezer.com/search?q={urllib.parse.quote(query)}"
+                        response = requests.get(url)
+                        if response.status_code == 200:
+                            data = response.json()
+                            if data.get('data') and len(data['data']) > 0:
+                                return data['data'][0]
+                    return None
+            else:
+                print(f"Failed to search: Status code {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"Error searching for track: {e}")
+            return None
         
-        search_url = f"https://api.deezer.com/search?q={query}&limit=1"
-        response = get(search_url)
+    def get_deezer_track_by_id(self, track_id):
+        """
+        Retrieves detailed track information directly by Deezer track ID.
         
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('data') and len(data['data']) > 0:
-                return data['data'][0]
-        return None
+        Args:
+            track_id: The Deezer track ID
+            
+        Returns:
+            Track information dictionary or None if not found
+        """
+        try:
+            url = f"https://api.deezer.com/track/{track_id}"
+            response = requests.get(url)
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print(f"Failed to fetch track by ID {track_id}: Status code {response.status_code}")
+                return None
+                
+        except Exception as e:
+            print(f"Error fetching track by ID {track_id}: {e}")
+            return None
     
     def fetch_user_songs(self): #! This new fetching_users implementation uses deezer api, this will still work when sinking back to front end no worries
         """
@@ -319,31 +383,48 @@ class SpotifyManagement:
         """
         self.tracks = self.get_tracks()
         print('\nFetching track data using deezer api instead of spotify, will take time so please be patient...\n')
+        
         if not self.tracks:
             return []
+            
         track_data = []
         for track in self.tracks:
             try:
-                deezer_result = self.get_deezer_track_info(
-                    track['name'],
-                    track.get('artist', '')
-                )
-                
+                track_name = track['name']
+                artist = track.get('artist', '')
+                primary_artist = self.extract_primary_artist(artist)
+                deezer_result = self.get_deezer_track_info(track_name, primary_artist)
                 if not deezer_result:
+                    deezer_result = self.get_deezer_track_info(track_name, "")
+                    
+                if not deezer_result:
+                    simplified_name = self.simplify_track_name(track_name)
+                    if simplified_name != track_name:
+                        deezer_result = self.get_deezer_track_info(simplified_name, primary_artist)
+                    
+                if not deezer_result:
+                    print(f"Could not find track: {track_name} by {artist}")
                     continue
                     
+                track_id = deezer_result['id']
+                track_details = self.get_deezer_track_by_id(track_id)
+                
+                if not track_details:
+                    track_details = deezer_result
+                    
                 track_data.append({
-                    'name': deezer_result['title'],
-                    'id': deezer_result['id'],
-                    'image': deezer_result['album']['cover_xl'],
-                    'artist': deezer_result['artist']['name'],
-                    'preview_url': deezer_result['preview'],
-                    'deezer_url': deezer_result['link']
+                    'name': track_details['title'],
+                    'id': track_details['id'],
+                    'image': track_details['album']['cover_xl'],
+                    'artist': track_details['artist']['name'],
+                    'preview_url': track_details['preview'],
+                    'deezer_url': track_details['link']
                 })
                 
             except Exception as e:
                 print(f"Error processing {track['name']}: {e}")
                 continue
+                
         self.storage_manager.finalized_data = track_data
         return self.storage_manager.finalized_data
     
