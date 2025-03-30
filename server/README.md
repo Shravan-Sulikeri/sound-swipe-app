@@ -123,7 +123,6 @@ To test the server:
 - Deezer API is used for song previews and cover art
 - Groq LLM is used for intelligent song recommendations
 - CORS is enabled for frontend communication 
-- If on Mac and you run into trouble with port 5000, to fix it, you need to turn off AirPlay Receiver. This can be done by unchecking AirPlay Receiver in the General section of System Preferences.
 
 ## Troubleshooting
 
