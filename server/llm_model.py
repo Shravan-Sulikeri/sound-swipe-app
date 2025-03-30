@@ -30,6 +30,7 @@ class GlobalVariables:
         self.tracks = None
         self.music = None
         self.finalized_data = None
+        
 class SpotifyAPI:
     def __init__(self):
         load_dotenv()
@@ -39,6 +40,11 @@ class SpotifyAPI:
         self.auth_header = self.get_auth_header(self.token)
         
     def get_token(self):
+        """
+        gets api key and returns a token for the user to use for authentication.
+        client secret id : api key
+        puts in byte format
+        """
         auth_str = self.client_id + ":" + self.client_secret
         auth_bytes = auth_str.encode('utf-8')
         auth_b64 = str(base64.b64encode(auth_bytes), "utf-8")
@@ -57,7 +63,12 @@ class SpotifyAPI:
     def get_auth_header(self, token):
         return {"Authorization": "Bearer " + token}
     
-    def fetch_current_user_playlists(self, token, user_id="rgjs2003"): #! This function is ONLY for testing purposes
+    def fetch_current_user_playlists(self, token, user_id="w5e01d35jtoh0qo6j060vr7jv"): #! This function is ONLY for testing purposes
+        """
+        what we're currently using. 
+        Fetches all the current user after putting in account name.
+        """
+
         playlist = []
         url = f"https://api.spotify.com/v1/users/{user_id}/playlists"
         headers = self.get_auth_header(token)
@@ -74,6 +85,9 @@ class SpotifyAPI:
         return playlist
     
     def fetch_logged_in_user_playlist(self, token): #! Need to get AUTH working for this function
+        """
+        will eventually fetch playlists of whoever's logged in. 
+        """
         playlist = []
         url = "https://api.spotify.com/v1/me/playlists"
         headers = self.get_auth_header(token)
@@ -89,11 +103,11 @@ class SpotifyAPI:
                 playlist.append(final)
         return playlist
 
-    def fetch_track_from_playlist(self, auth_token, playlist_id="0jc7n2yw8xjrRJORj4uGGm"): #! This is ONLY for testing purposes
+    def fetch_track_from_playlist(self, auth_token, playlist_id="3FCcErUVRSiCJl2J9stvhI"): #! This is ONLY for testing purposes
         """
-        Fetches track data from a Spotify playlist.
-        Input: playlist_id (string), auth_token (string)
-        Output: List of track dictionaries [{'name': ..., 'artist': ..., 'album': ...}, ...]
+        if not logged in: public playlists can be accessed with just the playlist id.
+        gets songs from a designated playlist id. get id from link, thing before "?"
+        
         """
         tracks = []
         url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
@@ -112,6 +126,10 @@ class SpotifyAPI:
         return tracks
 
 class PlaylistManager:
+    """
+        creates a dictionary of all the playlists and their respective tracks.
+        
+    """
     def __init__(self):
         self.spotify_api = SpotifyAPI()
         self.token = self.spotify_api.token
@@ -121,7 +139,6 @@ class PlaylistManager:
         Combines playlist and track data into a dictionary or structured format.
         Input: Spotify API token
         Output: Dictionary of playlists and tracks or structured format
-        
         """
         playlist_tracks= {}
         # x = input("1 -> for dictionary format or 2 -> for structured format: ") #! Right now input is required lets change so input 1 will always be used in prod.
@@ -173,10 +190,11 @@ class RecommendationManager:
             if isinstance(playlists, dict):
                 print("Playlists Found:")
                 for name, tracks in playlists.items():
-                    print(f"- {name}: {len(tracks)} tracks")
+                    print(f" 💽 {name}: {len(tracks)} tracks")
             else:
                 print("Playlist retrieval returned non-dictionary type:", type(playlists))
                 return None
+            
             prompt = (
                 "I have these music playlists:\n\n"
                 + "\n".join(
@@ -190,8 +208,10 @@ class RecommendationManager:
                 "3. Prioritize the mood and styles of the song in the playlist to match\n\n"
                 "4. Once a song has been recommended it should NOT be recommended again\n"
                 "5. Songs should be a combination of new and old, popular and not as well\n"
+                "6. Prioritize fitting the playlist's central theme, decide whether it is stylic, cultural, occasional, or pertains to a certain artist\n"
+                "7. If a playlist consist of songs mostly by a particular artist, prioritize recommending songs by that artist\n\n"
                 "RESPOND EXACTLY IN THIS JSON FORMAT:\n"
-                "{\n"
+                "{\n" 
                 "  \"Playlist Name 1\": [\n"
                 "    {\"name\": \"Song1\", \"artist\": \"Artist1\"},\n"
                 "    {\"name\": \"Song2\", \"artist\": \"Artist2\"}\n"
@@ -220,9 +240,9 @@ class RecommendationManager:
                 stream=False,
             )
             full_response = chat_completion.choices[0].message.content
-            print("\n--- RAW AI RESPONSE ---")
+            print("\n------------ RAW AI RESPONSE ------------")
             print(full_response)
-            print("--- END RAW RESPONSE ---\n")
+            print("------------ END RAW RESPONSE -----------\n")
             try:
                 parsed_response = json.loads(full_response)
                 return parsed_response
@@ -265,7 +285,15 @@ class RecommendationManager:
             print("ERROR IN FORMATTING RECOMMENDATIONS:")
             traceback.print_exc()
             return {}
+        
 class SpotifyManagement:
+    """"
+        takes ai recommedned tracks, goes to deezer, and completes info
+        formats for frontend to use, including preview_url, cover_art, etc.
+        This class is responsible for managing the entire process of
+        fetching user playlists, generating song recommendations, and
+        retrieving detailed track information using the Deezer API.
+    """
     def __init__(self):
         self.recommendation_manager = RecommendationManager()
         self.spotify_api = SpotifyAPI()
@@ -279,7 +307,7 @@ class SpotifyManagement:
         Returns:
             List of dictionaries with track details.
         """
-        storage = self.storage_manager.tracks
+        storage = self.storage_manager.tracks 
         playlists = self.recommendation_manager.format_recommendations()
         storage = playlists
         transformed_playlists = storage
@@ -385,7 +413,7 @@ class SpotifyManagement:
         """
         Takes data from get_tracks() function and uses deezer api to get rest of necessary data, ie. preview_url, cover_art, etc
         will later be stored and sent to frontend
-
+    
         Returns:
             Track data as a dictionary.
         """

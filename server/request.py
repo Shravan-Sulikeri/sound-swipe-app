@@ -48,18 +48,26 @@ class APIClient:
                 'data': []
             }
 
+def print_tracks(data): # takes dict, just prints title and artist     
+    max = 0
+    print("Data: ")
+    for x in data:
+        if len(x['name']) > max: 
+            max = len(x['name'])
+    for x in data:
+        print(f'\'{x['name'] + "\'" + " "*(max - len(x["name"]))}    - {x["artist"]}')  # Print title and artist with padding
+
 # Example usage
 if __name__ == "__main__":
     client = APIClient()
     
     # Get recommendations
-    print("Fetching recommendations...")
+    print("\nFetching recommendations...\n")
     recommendations = client.get_recommendations()
     print(f"Status: {recommendations['status']}")
-    print(f"Message: {recommendations['message']}")
     print(f"Total recommendations: {len(recommendations.get('data', []))}")
-    print(f"Data: {recommendations.get('data')} ")
-    
+    data = recommendations.get('data')
+    print_tracks(data)  # Print the formatted recommendations
     # Get playlists
     # print("\nFetching playlists...")
     # playlists = client.get_playlists()
