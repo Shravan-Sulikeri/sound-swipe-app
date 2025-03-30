@@ -5,3 +5,4 @@
 # data set folder/pycache
 datasets/
 __pycache__/
+venv/

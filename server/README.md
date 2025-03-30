@@ -29,34 +29,33 @@ PORT=5000
 
 ## Installation
 
-1. Create and activate a virtual environment (recommended but not necessary --- skip this for now):
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-2. Install dependencies:
+1. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Running the Application
 
-IMPORTANT: The application must be started in this specific order:
+**IMPORTANT:** The application must be started in this specific order.
+
+**NOTE:** A new terminal is required for each command.
 
 1. Start the Node.js server:
 ```bash
-node server.js
+sound-swipe-app
+└── node server.js
 ```
 
 2. Start the Flask server:
 ```bash
-python app.py
+sound-swipe-app/server
+└── python app.py
 ```
 
 3. Start the React frontend:
 ```bash
-npm start
+sound-swipe-app/client
+└── npm start
 ```
 
 The servers will:
@@ -124,8 +123,25 @@ To test the server:
 - Deezer API is used for song previews and cover art
 - Groq LLM is used for intelligent song recommendations
 - CORS is enabled for frontend communication 
+- If on Mac and you run into trouble with port 5000, to fix it, you need to turn off AirPlay Receiver. This can be done by unchecking AirPlay Receiver in the General section of System Preferences.
 
-## Issues to Address
+## Troubleshooting
+
+### Port 5000 Issue on Mac
+
+If you run into trouble with port 5000 being occupied on your Mac, it’s often caused by AirPlay. Follow these steps to resolve the issue:
+
+1. **Open System Preferences** on your Mac.
+2. Go to **General**.
+3. In the General panel, click **AirDrop & Handoff**. 
+4. In the AirDrop & Handoff panel, **uncheck** ***AirPlay Receiver***.
+4. Restart the **app.py** server that is using port 5000.
+
+If the issue persists, a system reboot may be required.
+
+
+## Issues to Address -- TODOS
+###### ***NOTE ->** When issue has been solved simply remove remove from the list or mark **DONE***
 
 1. **Duplicate Song Recommendations**
 
