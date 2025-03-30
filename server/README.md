@@ -137,11 +137,10 @@ If you run into trouble with port 5000 being occupied on your Mac, it’s often 
 4. In the AirDrop & Handoff panel, **uncheck** ***AirPlay Receiver***.
 4. Restart the **app.py** server that is using port 5000.
 
-If the issue persists, a system reboot may be required.
+If the issue persists, don’t hesitate to reach out, and we will work together to resolve it.
 
-
-## Issues to Address -- TODOS
-###### ***NOTE ->** When issue has been solved simply remove remove from the list or mark **DONE***
+## Issues to Address ~ TODOS
+###### ***NOTE ->** Once an issue has been resolved, either remove it from this list or mark it as completed to keep the to-do list up to date.*
 
 1. **Duplicate Song Recommendations**
 
@@ -153,4 +152,4 @@ If the issue persists, a system reboot may be required.
 
 3. **Playlist Integration with Spotify**
    - After retrieving tracks from Deezer, the next step is transforming the data back to the Spotify API to generate user playlists. This integration needs further development and testing.
- 
+
