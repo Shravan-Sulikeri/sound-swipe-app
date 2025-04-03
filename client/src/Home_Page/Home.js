@@ -16,11 +16,21 @@ const Home = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [cardTransform, setCardTransform] = useState({ x: 0, y: 0, rotate: 0 });
-    const [isAdd, setIsAdd] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // Modal states
+    const [showModal, setShowModal] = useState(false);
+    const [newPlaylistName, setNewPlaylistName] = useState('');
+    const [activePlaylist, setActivePlaylist] = useState(null);
+    
+    // Delete confirmation modal
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [playlistToDelete, setPlaylistToDelete] = useState(null);
 
     const audioRef = useRef(null);
     const cardRef = useRef(null);
+    const modalRef = useRef(null);
+    const deleteModalRef = useRef(null);
 
     // Initialize songs when component mounts
     useEffect(() => {
@@ -43,16 +53,86 @@ const Home = () => {
         initializeSongs();
     }, []);
 
+    // Close modal when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (modalRef.current && !modalRef.current.contains(event.target)) {
+                setShowModal(false);
+            }
+            if (deleteModalRef.current && !deleteModalRef.current.contains(event.target)) {
+                setShowDeleteModal(false);
+            }
+        };
+
+        if (showModal || showDeleteModal) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showModal, showDeleteModal]);
+
     const handleLogout = () => {
         window.location.href = "http://localhost:3001/logout";
     };
 
-    const handleAddPlaylist = () => {
-        setIsAdd(true);
+    const handleOpenModal = () => {
+        setShowModal(true);
     };
 
-    const handleExitPlaylist = () => {
-        setIsAdd(false);
+    const handleCloseModal = () => {
+        setShowModal(false);
+        setNewPlaylistName('');
+    };
+
+    const handleCreatePlaylist = () => {
+        if (newPlaylistName.trim() === '') return;
+
+        const newPlaylist = {
+            id: Date.now().toString(),
+            name: newPlaylistName,
+            songs: [],
+            songCount: 0,
+            coverImage: likedSongs.length > 0 
+                ? likedSongs[0].coverImage 
+                : 'https://via.placeholder.com/100'
+        };
+
+        setPlaylists([...playlists, newPlaylist]);
+        setActivePlaylist(newPlaylist.id);
+        setNewPlaylistName('');
+        setShowModal(false);
+    };
+
+    const handlePlaylistSelect = (playlistId) => {
+        if (activePlaylist === playlistId) {
+            setActivePlaylist(null);
+        } else {
+            setActivePlaylist(playlistId);
+        }
+    };
+
+    const handleDeleteClick = (e, playlistId) => {
+        e.stopPropagation(); // Prevent playlist selection when clicking delete
+        setPlaylistToDelete(playlistId);
+        setShowDeleteModal(true);
+    };
+
+    const handleConfirmDelete = () => {
+        // If deleting the active playlist, clear the active state
+        if (playlistToDelete === activePlaylist) {
+            setActivePlaylist(null);
+        }
+        
+        // Remove the playlist
+        setPlaylists(playlists.filter(playlist => playlist.id !== playlistToDelete));
+        setShowDeleteModal(false);
+        setPlaylistToDelete(null);
+    };
+
+    const handleCancelDelete = () => {
+        setShowDeleteModal(false);
+        setPlaylistToDelete(null);
     };
 
     const handleStartSwiping = () => {
@@ -78,7 +158,27 @@ const Home = () => {
         card.classList.add(`swiped-${direction}`);
         
         if (direction === 'right') {
+            // Add to liked songs
             setLikedSongs(prev => [...prev, currentSong]);
+            
+            // Add to active playlist if one is selected
+            if (activePlaylist) {
+                setPlaylists(prevPlaylists => 
+                    prevPlaylists.map(playlist => {
+                        if (playlist.id === activePlaylist) {
+                            const updatedSongs = [...playlist.songs, currentSong];
+                            return {
+                                ...playlist,
+                                songs: updatedSongs,
+                                songCount: updatedSongs.length,
+                                // Update cover image to the first song's image if this is the first song
+                                coverImage: playlist.songs.length === 0 ? currentSong.coverImage : playlist.coverImage
+                            };
+                        }
+                        return playlist;
+                    })
+                );
+            }
         }
 
         // Reset audio
@@ -243,13 +343,7 @@ const Home = () => {
             <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
                 <div className="sidebar-header">
                     <h2 className='playlist-text'>Your Playlists</h2>
-                    <button onClick={handleAddPlaylist} className="add-playlist-btn">+</button>
-                    {isAdd ? (
-                        <div className="add-playlist-form">
-                            <input type="text" placeholder="Playlist Name" />
-                            <button onClick={handleExitPlaylist} className="add-playlist-submit">Create</button>
-                        </div>
-                    ) : null}
+                    <button onClick={handleOpenModal} className="add-playlist-btn">+</button>
                 </div>
                 <div className="playlist-list">
                     {playlists.length === 0 ? (
@@ -258,12 +352,23 @@ const Home = () => {
                         </p>
                     ) : (
                         playlists.map(playlist => (
-                            <div key={playlist.id} className="playlist-item">
+                            <div 
+                                key={playlist.id} 
+                                className={`playlist-item ${activePlaylist === playlist.id ? 'active' : ''}`}
+                                onClick={() => handlePlaylistSelect(playlist.id)}
+                            >
                                 <img src={playlist.coverImage} alt={playlist.name} />
                                 <div className="playlist-info">
                                     <div className="playlist-name">{playlist.name}</div>
                                     <div className="playlist-song-count">{playlist.songCount} songs</div>
                                 </div>
+                                <button 
+                                    className="delete-playlist-btn" 
+                                    onClick={(e) => handleDeleteClick(e, playlist.id)}
+                                    aria-label="Delete playlist"
+                                >
+                                    <span className="delete-icon">×</span>
+                                </button>
                             </div>
                         ))
                     )}
@@ -288,6 +393,11 @@ const Home = () => {
                 </section>
 
                 <div className={`swipe-container ${!isSwiping ? 'hidden' : ''}`}>
+                    {activePlaylist && (
+                        <div className={`active-playlist-indicator ${isSidebarCollapsed ? 'sidebar collapsed' : ''}`}>
+                            Adding to: {playlists.find(p => p.id === activePlaylist)?.name}
+                        </div>
+                    )}
                     <div 
                         ref={cardRef}
                         className={`song-card ${isDragging ? 'swiping' : ''}`}
@@ -362,6 +472,67 @@ const Home = () => {
                 <button className="logout-button" onClick={handleLogout}>
                     Logout
                 </button>
+            )}
+
+            {/* Playlist Creation Modal */}
+            {showModal && (
+                <div className="modal-overlay">
+                    <div className="playlist-modal" ref={modalRef}>
+                        <div className="modal-header">
+                            <h3>Create New Playlist</h3>
+                            <button className="close-modal" onClick={handleCloseModal}>✕</button>
+                        </div>
+                        <div className="modal-content">
+                            <p>Give your playlist a name. Songs you swipe right on will be added to this playlist.</p>
+                            <input
+                                type="text"
+                                className="playlist-name-input"
+                                placeholder="e.g Workout Playlist"
+                                value={newPlaylistName}
+                                onChange={(e) => setNewPlaylistName(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-btn" onClick={handleCloseModal}>Cancel</button>
+                            <button 
+                                className="create-btn"
+                                onClick={handleCreatePlaylist}
+                                disabled={newPlaylistName.trim() === ''}
+                            >
+                                Create Playlist
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+                <div className="modal-overlay">
+                    <div className="delete-modal" ref={deleteModalRef}>
+                        <div className="modal-header">
+                            <h3>Delete Playlist</h3>
+                            <button className="close-modal" onClick={handleCancelDelete}>✕</button>
+                        </div>
+                        <div className="modal-content">
+                            <p>
+                                Are you sure you want to delete 
+                                <strong> {playlists.find(p => p.id === playlistToDelete)?.name}</strong>? 
+                                This cannot be undone.
+                            </p>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-btn" onClick={handleCancelDelete}>Cancel</button>
+                            <button 
+                                className="delete-btn"
+                                onClick={handleConfirmDelete}
+                            >
+                                Delete Playlist
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             <audio
