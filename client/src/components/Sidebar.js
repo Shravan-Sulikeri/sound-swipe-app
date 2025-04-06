@@ -6,14 +6,14 @@ const Sidebar = ({
 	activePlaylist,
 	handlePlaylistSelect,
 	handleDeleteClick,
-	handleOpenModal,
+	handleOpenCreateModal,
 	handleDeleteSong,
 }) => {
 	return (
 		<aside className={`sidebar ${isSidebarCollapsed ? "collapsed" : ""}`}>
 			<div className="sidebar-header">
 				<h2 className="playlist-text">Your Playlists</h2>
-				<button onClick={handleOpenModal} className="add-playlist-btn">
+				<button onClick={handleOpenCreateModal} className="add-playlist-btn">
 					+
 				</button>
 			</div>

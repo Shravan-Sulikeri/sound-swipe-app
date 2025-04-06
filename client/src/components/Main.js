@@ -41,7 +41,7 @@ const MainContent = ({
 							verticalAlign: "middle",
 							objectFit: "contain",
 						}}
-						src={require("../../assets/soundswipe-logo-zip-file/png/logo-no-background.png")}
+						src={require("../assets/soundswipe-logo-zip-file/png/logo-no-background.png")}
 					/>
 				</h1>
 				<p className="paragraph-text">

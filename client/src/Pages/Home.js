@@ -71,11 +71,11 @@ const Home = () => {
 		window.location.href = "http://localhost:3001/logout";
 	};
 
-	const handleOpenModal = () => {
+	const handleOpenCreateModal = () => {
 		setShowCreateModal(true);
 	};
 
-	const handleCloseModal = () => {
+	const handleCloseCreateModal = () => {
 		setShowCreateModal(false);
 		setNewPlaylistName("");
 	};
@@ -363,7 +363,7 @@ const Home = () => {
 				activePlaylist={activePlaylist}
 				handlePlaylistSelect={handlePlaylistSelect}
 				handleDeleteClick={handleDeleteClick}
-				handleOpenModal={handleOpenModal}
+				handleOpenCreateModal={handleOpenCreateModal}
 				handleDeleteSong={handleDeleteSong}
 			/>
 
@@ -405,12 +405,12 @@ const Home = () => {
 			{showCreateModal && (
 				<Modal
 					isOpen={createModalRef}
-					onClose={handleCloseModal}
+					onClose={handleCloseCreateModal}
 					className="playlist-modal"
 				>
 					<div className="modal-header">
 						<h3>Create New Playlist</h3>
-						<button className="close-modal" onClick={handleCloseModal}>
+						<button className="close-modal" onClick={handleCloseCreateModal}>
 							✕
 						</button>
 					</div>
@@ -429,7 +429,7 @@ const Home = () => {
 						/>
 					</div>
 					<div className="modal-footer">
-						<button className="cancel-btn" onClick={handleCloseModal}>
+						<button className="cancel-btn" onClick={handleCloseCreateModal}>
 							Cancel
 						</button>
 						<button
