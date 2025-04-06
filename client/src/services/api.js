@@ -40,3 +40,12 @@ export const getRecommendations = async (likedSongIds, count = 20) => {
         throw error;
     }
 }; 
+
+// src/services/api.js
+
+export async function getSongsFromPlaylist(playlistId) {
+    const response = await fetch(`http://localhost:5000/api/playlist/${playlistId}`);
+    const data = await response.json();
+    return data;
+  }
+  

@@ -1009,20 +1009,80 @@
 }
 
 .active-playlist-indicator {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: #1DB954;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 500;
-    z-index: 10;
-    backdrop-filter: blur(5px);
-    border: 1px solid rgba(29, 185, 84, 0.5);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    animation: fadeIn 0.3s ease;
+  position: fixed;
+  top: 20px;       
+  left: 20%;       
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #1DB954;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1500;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(29, 185, 84, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: fadeIn 0.3s ease;
+}
+
+.playlist-songs {
+  margin-top: 8px;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.playlist-song-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.playlist-song-img {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.playlist-song-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.05);
+  transition: background 0.2s;
+}
+
+.playlist-song-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.playlist-song-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.delete-song-btn {
+  background: transparent;
+  border: none;
+  color: #ff4d4f;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.delete-song-btn:hover {
+  color: #ff1a1a;
 }
 
 @keyframes fadeIn {

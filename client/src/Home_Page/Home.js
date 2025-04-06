@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import '../styling/home.css';
 import { getSampleTracks, getRecommendations } from '../services/api';
 
+import { getSongsFromPlaylist } from '../services/api';
+
 const Home = () => {
     const [isSwiping, setIsSwiping] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -31,6 +33,16 @@ const Home = () => {
     const cardRef = useRef(null);
     const modalRef = useRef(null);
     const deleteModalRef = useRef(null);
+
+
+    const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
+const [playlistSongs, setPlaylistSongs] = useState([]);
+
+const handlePlaylistClick = async (playlist) => {
+  setSelectedPlaylistId(playlist.id);
+  const songs = await getSongsFromPlaylist(playlist.id);
+  setPlaylistSongs(songs.data || []);
+};
 
     // Initialize songs when component mounts
     useEffect(() => {
@@ -109,14 +121,35 @@ const Home = () => {
             setActivePlaylist(null);
         } else {
             setActivePlaylist(playlistId);
+            const selected = playlists.find(p => p.id === playlistId);
+            setPlaylistSongs(selected?.songs || []);
         }
     };
+    
 
     const handleDeleteClick = (e, playlistId) => {
         e.stopPropagation(); // Prevent playlist selection when clicking delete
         setPlaylistToDelete(playlistId);
         setShowDeleteModal(true);
     };
+    const handleDeleteSong = (playlistId, songIndex) => {
+        setPlaylists(prevPlaylists =>
+          prevPlaylists.map(playlist => {
+            if (playlist.id === playlistId) {
+              const updatedSongs = [...playlist.songs];
+              updatedSongs.splice(songIndex, 1);
+              return {
+                ...playlist,
+                songs: updatedSongs,
+                songCount: updatedSongs.length,
+                coverImage: updatedSongs.length > 0 ? updatedSongs[0].coverImage : 'https://via.placeholder.com/100'
+              };
+            }
+            return playlist;
+          })
+        );
+      };
+      
 
     const handleConfirmDelete = () => {
         // If deleting the active playlist, clear the active state
@@ -352,25 +385,46 @@ const Home = () => {
                         </p>
                     ) : (
                         playlists.map(playlist => (
-                            <div 
-                                key={playlist.id} 
-                                className={`playlist-item ${activePlaylist === playlist.id ? 'active' : ''}`}
-                                onClick={() => handlePlaylistSelect(playlist.id)}
-                            >
-                                <img src={playlist.coverImage} alt={playlist.name} />
-                                <div className="playlist-info">
-                                    <div className="playlist-name">{playlist.name}</div>
-                                    <div className="playlist-song-count">{playlist.songCount} songs</div>
-                                </div>
-                                <button 
-                                    className="delete-playlist-btn" 
-                                    onClick={(e) => handleDeleteClick(e, playlist.id)}
-                                    aria-label="Delete playlist"
+                            <div key={playlist.id}>
+                                <div 
+                                    className={`playlist-item ${activePlaylist === playlist.id ? 'active' : ''}`}
+                                    onClick={() => handlePlaylistSelect(playlist.id)}
                                 >
-                                    <span className="delete-icon">×</span>
-                                </button>
+                                    <img src={playlist.coverImage} alt={playlist.name} />
+                                    <div className="playlist-info">
+                                        <div className="playlist-name">{playlist.name}</div>
+                                        <div className="playlist-song-count">{playlist.songCount} songs</div>
+                                    </div>
+                                    <button 
+                                        className="delete-playlist-btn" 
+                                        onClick={(e) => handleDeleteClick(e, playlist.id)}
+                                        aria-label="Delete playlist"
+                                    >
+                                        <span className="delete-icon">×</span>
+                                    </button>
+                                </div>
+                        
+                                {/* 🎵 Playlist Songs (only shown for selected playlist) */}
+                                {activePlaylist === playlist.id && playlist.songs.length > 0 && (
+                                    <div className="playlist-songs">
+                                       {playlist.songs.map((song, index) => (
+                                        <div key={index} className="playlist-song-item">
+                                            <img src={song.coverImage} alt={song.name} className="playlist-song-img" />
+                                            <span style={{ flex: 1 }}>{song.name}</span>
+                                            <button
+                                            className="delete-song-btn"
+                                            onClick={() => handleDeleteSong(playlist.id, index)}
+                                            title="Remove song"
+                                            >
+                                            ❌
+                                            </button>
+                                        </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ))
+                        
                     )}
                 </div>
             </aside>
