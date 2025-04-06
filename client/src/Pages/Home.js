@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import Modal from "../components/common/Modal";
 import "../styling/home.css";
-import Sidebar from "./components/Sidebar";
-import MainContent from "./components/Main";
+import Sidebar from "../components/Sidebar";
+import MainContent from "../components/Main";
 import { getSampleTracks, getRecommendations } from "../services/api";
 
 import { getSongsFromPlaylist } from "../services/api";
