@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import Modal from "../components/common/Modal";
 import "../styling/home.css";
 import Sidebar from "./components/Sidebar";
 import MainContent from "./components/Main";
@@ -23,7 +24,7 @@ const Home = () => {
 	const [isLoading, setIsLoading] = useState(false);
 
 	// Modal states
-	const [showModal, setShowModal] = useState(false);
+	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [newPlaylistName, setNewPlaylistName] = useState("");
 	const [activePlaylist, setActivePlaylist] = useState(null);
 
@@ -33,7 +34,7 @@ const Home = () => {
 
 	const audioRef = useRef(null);
 	const cardRef = useRef(null);
-	const modalRef = useRef(null);
+	const createModalRef = useRef(null);
 	const deleteModalRef = useRef(null);
 
 	const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
@@ -66,38 +67,16 @@ const Home = () => {
 		initializeSongs();
 	}, []);
 
-	// Close modal when clicking outside
-	useEffect(() => {
-		const handleClickOutside = (event) => {
-			if (modalRef.current && !modalRef.current.contains(event.target)) {
-				setShowModal(false);
-			}
-			if (
-				deleteModalRef.current &&
-				!deleteModalRef.current.contains(event.target)
-			) {
-				setShowDeleteModal(false);
-			}
-		};
-
-		if (showModal || showDeleteModal) {
-			document.addEventListener("mousedown", handleClickOutside);
-		}
-		return () => {
-			document.removeEventListener("mousedown", handleClickOutside);
-		};
-	}, [showModal, showDeleteModal]);
-
 	const handleLogout = () => {
 		window.location.href = "http://localhost:3001/logout";
 	};
 
 	const handleOpenModal = () => {
-		setShowModal(true);
+		setShowCreateModal(true);
 	};
 
 	const handleCloseModal = () => {
-		setShowModal(false);
+		setShowCreateModal(false);
 		setNewPlaylistName("");
 	};
 
@@ -118,7 +97,7 @@ const Home = () => {
 		setPlaylists([...playlists, newPlaylist]);
 		setActivePlaylist(newPlaylist.id);
 		setNewPlaylistName("");
-		setShowModal(false);
+		setShowCreateModal(false);
 	};
 
 	const handlePlaylistSelect = (playlistId) => {
@@ -423,75 +402,79 @@ const Home = () => {
 			)}
 
 			{/* Playlist Creation Modal */}
-			{showModal && (
-				<div className="modal-overlay">
-					<div className="playlist-modal" ref={modalRef}>
-						<div className="modal-header">
-							<h3>Create New Playlist</h3>
-							<button className="close-modal" onClick={handleCloseModal}>
-								✕
-							</button>
-						</div>
-						<div className="modal-content">
-							<p>
-								Give your playlist a name. Songs you swipe right on will be
-								added to this playlist.
-							</p>
-							<input
-								type="text"
-								className="playlist-name-input"
-								placeholder="e.g Workout Playlist"
-								value={newPlaylistName}
-								onChange={(e) => setNewPlaylistName(e.target.value)}
-								autoFocus
-							/>
-						</div>
-						<div className="modal-footer">
-							<button className="cancel-btn" onClick={handleCloseModal}>
-								Cancel
-							</button>
-							<button
-								className="create-btn"
-								onClick={handleCreatePlaylist}
-								disabled={newPlaylistName.trim() === ""}
-							>
-								Create Playlist
-							</button>
-						</div>
+			{showCreateModal && (
+				<Modal
+					isOpen={createModalRef}
+					onClose={handleCloseModal}
+					className="playlist-modal"
+				>
+					<div className="modal-header">
+						<h3>Create New Playlist</h3>
+						<button className="close-modal" onClick={handleCloseModal}>
+							✕
+						</button>
 					</div>
-				</div>
+					<div className="modal-content">
+						<p>
+							Give your playlist a name. Songs you swipe right on will be added
+							to this playlist.
+						</p>
+						<input
+							type="text"
+							className="playlist-name-input"
+							placeholder="e.g Workout Playlist"
+							value={newPlaylistName}
+							onChange={(e) => setNewPlaylistName(e.target.value)}
+							autoFocus
+						/>
+					</div>
+					<div className="modal-footer">
+						<button className="cancel-btn" onClick={handleCloseModal}>
+							Cancel
+						</button>
+						<button
+							className="create-btn"
+							onClick={handleCreatePlaylist}
+							disabled={newPlaylistName.trim() === ""}
+						>
+							Create Playlist
+						</button>
+					</div>
+				</Modal>
 			)}
 
 			{/* Delete Confirmation Modal */}
 			{showDeleteModal && (
-				<div className="modal-overlay">
-					<div className="delete-modal" ref={deleteModalRef}>
-						<div className="modal-header">
-							<h3>Delete Playlist</h3>
-							<button className="close-modal" onClick={handleCancelDelete}>
-								✕
-							</button>
-						</div>
-						<div className="modal-content">
-							<p>
-								Are you sure you want to delete
-								<strong>
-									{" "}
-									{playlists.find((p) => p.id === playlistToDelete)?.name}
-								</strong>
-								? This cannot be undone.
-							</p>
-						</div>
-						<div className="modal-footer">
-							<button className="cancel-btn" onClick={handleCancelDelete}>
-								Cancel
-							</button>
-							<button className="delete-btn" onClick={handleConfirmDelete}>
-								Delete Playlist
-							</button>
-						</div>
+				<Modal
+					isOpen={deleteModalRef}
+					onClose={handleCancelDelete}
+					className="delete-modal"
+				>
+					<div className="modal-header">
+						<h3>Delete Playlist</h3>
+						<button className="close-modal" onClick={handleCancelDelete}>
+							✕
+						</button>
 					</div>
-				</div>
+					<div className="modal-content">
+						<p>
+							Are you sure you want to delete
+							<strong>
+								{" "}
+								{playlists.find((p) => p.id === playlistToDelete)?.name}
+							</strong>
+							? This cannot be undone.
+						</p>
+					</div>
+					<div className="modal-footer">
+						<button className="cancel-btn" onClick={handleCancelDelete}>
+							Cancel
+						</button>
+						<button className="delete-btn" onClick={handleConfirmDelete}>
+							Delete Playlist
+						</button>
+					</div>
+				</Modal>
 			)}
 
 			<audio
