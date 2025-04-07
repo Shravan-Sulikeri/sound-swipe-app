@@ -115,6 +115,7 @@ const Home = () => {
 		setPlaylistToDelete(playlistId);
 		setShowDeleteModal(true);
 	};
+
 	const handleDeleteSong = (playlistId, songIndex) => {
 		setPlaylists((prevPlaylists) =>
 			prevPlaylists.map((playlist) => {

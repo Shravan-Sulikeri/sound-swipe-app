@@ -58,7 +58,7 @@ const MainContent = ({
 				{activePlaylist && (
 					<div
 						className={`active-playlist-indicator ${
-							isSidebarCollapsed ? "sidebar collapsed" : ""
+							!isSidebarCollapsed ? "sidebar collapsed" : ""
 						}`}
 					>
 						Adding to: {playlists.find((p) => p.id === activePlaylist)?.name}
