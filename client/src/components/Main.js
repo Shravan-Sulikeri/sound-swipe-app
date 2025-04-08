@@ -72,11 +72,12 @@ const MainContent = ({
 						backgroundImage: `url(${currentSong.coverImage})`,
 						backgroundSize: "cover",
 						backgroundPosition: "center",
+						cursor: activePlaylist ? "grab" : "not-allowed",
 					}}
-					onMouseDown={handleDragStart}
-					onMouseMove={handleDragMove}
-					onMouseUp={handleDragEnd}
-					onMouseLeave={handleDragEnd}
+					onMouseDown={activePlaylist ? handleDragStart : null}
+					onMouseMove={activePlaylist ? handleDragMove : null}
+					onMouseUp={activePlaylist ? handleDragEnd : null}
+					onMouseLeave={activePlaylist ? handleDragEnd : null}
 				>
 					<div className="song-info">
 						<div className="song-details">
@@ -108,12 +109,14 @@ const MainContent = ({
 
 						<div className="swipe-buttons">
 							<button
+								disabled={activePlaylist ? null : true}
 								className="swipe-button dislike"
 								onClick={() => handleSwipe("left")}
 							>
 								✕
 							</button>
 							<button
+								disabled={activePlaylist ? null : true}
 								className="swipe-button like"
 								onClick={() => handleSwipe("right")}
 							>
