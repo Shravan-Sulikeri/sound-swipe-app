@@ -1,4 +1,5 @@
 import React from "react";
+import {IoIosClose} from "react-icons/io";
 
 const Sidebar = ({
 	isSidebarCollapsed,
@@ -63,7 +64,7 @@ const Sidebar = ({
 												onClick={() => handleDeleteSong(playlist.id, index)}
 												title="Remove song"
 											>
-												❌
+												<IoIosClose />
 											</button>
 										</div>
 									))}
