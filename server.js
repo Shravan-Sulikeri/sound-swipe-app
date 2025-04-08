@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const querystring = require("querystring");
 const axios = require("axios");
-const morgan = require("morgan")
+const morgan = require("morgan");
 // Session Information
 const session = require("express-session");
 // Database and session store
@@ -11,10 +11,12 @@ const mongoStore = require("connect-mongo");
 
 const app = express();
 app.use(morgan("tiny"));
-app.use(cors({
+app.use(
+	cors({
 		origin: "http://localhost:3000", // Explicitly allow your React app's origin
 		credentials: true, // Allow credentials (cookies)
-	}));
+	})
+);
 app.use(express.json());
 app.use(
 	session({
@@ -86,17 +88,17 @@ const refreshTokenIfExpired = async (req, res, next) => {
 	}
 };
 
-
 app.get("/api/check-auth", refreshTokenIfExpired, (req, res) => {
 	// If the middleware passes, the user is authenticated
-	res.json({ authenticated: true, user: req.session.token });
+	res.json({ authenticated: true, access_token: req.session.token });
 });
 
 // Step 1: Redirect user to Spotify for authentication
 
 app.get("/login", (req, res) => {
 	const scope =
-		"user-read-private user-read-email playlist-modify-public playlist-modify-private";
+		// playlist-read-private to see private playlists
+		"user-read-private user-read-email playlist-modify-public playlist-modify-private playlist-read-private";
 	const authURL =
 		"https://accounts.spotify.com/authorize?" +
 		querystring.stringify({
@@ -137,9 +139,7 @@ app.get("/callback", async (req, res) => {
 			timestamp: Date.now(), // Store the time when the token was issued
 		};
 		// redirects token back to the app
-		res.redirect(
-			`http://localhost:3000/`
-		);
+		res.redirect(`http://localhost:3000/`);
 	} catch (error) {
 		console.error(
 			"Error exchanging code for access token:",
@@ -163,6 +163,24 @@ app.get("/api/me", refreshTokenIfExpired, async (req, res) => {
 				Authorization: `Bearer ${req.accessToken}`,
 			},
 		});
+		res.json(response.data); // need href for https://api.spotify.com/v1/users/{userId}
+	} catch (error) {
+		res.status(500).json({ error: "Failed to fetch user data" });
+	}
+});
+
+// Route to fetch user playlists from Spotify
+app.get("/api/playlists", refreshTokenIfExpired, async (req, res) => {
+	console.log(link);
+	try {
+		const response = await axios.get(
+			`https://api.spotify.com/v1/me/playlists`,
+			{
+				headers: {
+					Authorization: `Bearer ${req.accessToken}`,
+				},
+			}
+		);
 		res.json(response.data);
 	} catch (error) {
 		res.status(500).json({ error: "Failed to fetch user data" });
