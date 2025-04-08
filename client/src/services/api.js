@@ -1,8 +1,8 @@
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'http://localhost:3001';
 
 export const getSampleTracks = async (count = 20) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/recommendations`);
+        const response = await fetch(`${API_BASE_URL}/api/recommendations`, {credentials: 'include'});
         if (!response.ok) {
             throw new Error('Failed to fetch sample tracks');
         }

@@ -2,6 +2,8 @@
 
 This is the backend server for the SoundSwipe application, which provides music recommendations using Spotify and Deezer APIs, enhanced with LLM-powered recommendations.
 
+**IMPORTANT NOTE:** The server is now backed within flask, no more node.
+
 ## Features
 
 - Spotify playlist integration
@@ -14,7 +16,7 @@ This is the backend server for the SoundSwipe application, which provides music 
 ## Prerequisites
 
 - Python 3.8 or higher
-- Node.js
+~~- Node.js~~
 - **API Keys (CONTACT FOR KEYS)**
 
 ## Environment Setup
@@ -23,10 +25,14 @@ This is the backend server for the SoundSwipe application, which provides music 
 ```env
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+SPOTIFY_REDIRECT_URI=your_spotify_redirect_uri
 LAST_FM_API_KEY=your_last_fm_key
 GROQ_API_KEY=your_groq_api_key
-API_BASE_URL=http://localhost:5000/api
-PORT=5000
+API_BASE_URL=http://localhost:3001/api
+PORT=3001
+MONGO_URI=your_mongo_uri
+MONGO_CLIENT=your_mongo_client
+MONGO_SESSIONS=your_mongo_session
 ```
 
 ## Installation
@@ -38,23 +44,17 @@ pip install -r requirements.txt
 
 ## Running the Application
 
-**IMPORTANT:** The application must be started in this specific order.
+**IMPORTANT:** The application must be started in this specific order. No more need for running node.js as we migrated from node server to flask server.
 
 **NOTE:** A new terminal is required for each command.
 
-1. Start the Node.js server:
-```bash
-sound-swipe-app
-└── node server.js
-```
-
-2. Start the Flask server:
+1. Start the Flask server:
 ```bash
 sound-swipe-app/server
 └── python app.py
 ```
 
-3. Start the React frontend:
+2. Start the React frontend:
 ```bash
 sound-swipe-app/client
 └── npm start
@@ -130,17 +130,22 @@ To test the server:
 
 ## Troubleshooting
 
-### Port 5000 Issue on Mac
+### Port 5000 Issue on Mac [***Deprecated***]
 
-If you run into trouble with port 5000 being occupied on your Mac, it’s often caused by AirPlay. Follow these steps to resolve the issue:
+>[!WARNING] 
+> **DEPRECATED** - Port 5000 is no longer in use. We have moved to using port 3001.
+
+###### ***This information can be completely disregarded.***
+
+If you run into trouble with port 5000 being occupied on your Mac, it's often caused by AirPlay. Follow these steps to resolve the issue:
 
 1. **Open System Preferences** on your Mac.
 2. Go to **General**.
-3. In the General panel, click **AirDrop & Handoff**. 
-4. In the AirDrop & Handoff panel, **uncheck** ***AirPlay Receiver***.
-4. Restart the **app.py** server that is using port 5000.
+3. In the General panel, click **AirDrop & Handoff**.
+4. In the AirDrop & Handoff panel, **uncheck** **_AirPlay Receiver_**.
+5. Restart the **app.py** server that is using port 5000.
 
-If the issue persists, don’t hesitate to reach out, and we will work together to resolve it.
+
 
 ## Issues to Address ~ TODOS
 ###### ***NOTE ->** Once an issue has been resolved, either remove it from this list or mark it as completed to keep the to-do list up to date.*

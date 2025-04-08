@@ -13,7 +13,7 @@ const app = express();
 app.use(morgan("tiny"));
 app.use(
 	cors({
-		origin: "http://localhost:3000", // Explicitly allow your React app's origin
+		origin: ["http://localhost:3000", "http://localhost:5000"], // Explicitly allow your React app's origin
 		credentials: true, // Allow credentials (cookies)
 	})
 );
@@ -22,7 +22,7 @@ app.use(
 	session({
 		secret: process.env.SESSION_SECRET || "RANDOM STRING",
 		resave: false,
-		saveUninitialized: false,
+		saveUninitialized: true,
 		cookie: { maxAge: 60 * 60 * 1000 }, // 1 hour expiration on session
 		store: new mongoStore({
 			mongoUrl: process.env.MONGO_URL || "mongodb://localhost:27017/example",
@@ -90,7 +90,13 @@ const refreshTokenIfExpired = async (req, res, next) => {
 
 app.get("/api/check-auth", refreshTokenIfExpired, (req, res) => {
 	// If the middleware passes, the user is authenticated
-	res.json({ authenticated: true, access_token: req.session.token });
+	res.json({ authenticated: true, access_token: req.accessToken });
+});
+
+app.get("/api/token", refreshTokenIfExpired, (req, res) => {
+	res.json({
+		access_token: req.accessToken
+	});
 });
 
 // Step 1: Redirect user to Spotify for authentication
@@ -138,6 +144,8 @@ app.get("/callback", async (req, res) => {
 			expiresIn: response.data.expires_in,
 			timestamp: Date.now(), // Store the time when the token was issued
 		};
+
+		console.log("Access Token:", response.data.access_token);
 		// redirects token back to the app
 		res.redirect(`http://localhost:3000/`);
 	} catch (error) {

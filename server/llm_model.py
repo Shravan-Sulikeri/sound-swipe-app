@@ -13,6 +13,9 @@ import base64
 from urllib.parse import quote
 import re
 import urllib
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+from pymongo import MongoClient
 
 #**IMPORTANT** please read the all NOTES
 #NOTE: Feel free to test your own Spotify playlist if you have one, within the fetch_current_user function.
@@ -27,14 +30,55 @@ class GlobalVariables:
         self.tracks = None
         self.music = None
         self.finalized_data = None
+
+class MongoDB:
+    def __init__(self):
+        load_dotenv()
+        self.mongo_auth = os.getenv("MONGO_AUTH")
+    
+    def get_token(self):
+        cookies = {
+        'connect.sid': 's%3A5Lm3YAz4_KO-GGLG0R1nTljaJYwIeYtO.gcgUhCXqH7K3rVsTGG3lknbdGkGYVtGnAAG5avJBXzw'  # replace with the actual cookie value
+        }
+
+        # Make the request to get the token, send the cookie along
+        response = requests.get("http://localhost:3001/api/token", cookies=cookies)
+
+        if response.status_code == 200:
+            # If everything goes well, extract the token from the response
+            print("Token:", response.json())  # Here you should get the token
+        else:
+            raise Exception("Failed to get token:", response.status_code, response.text)
+        # try:
+        #     result = requests.get(self.mongo_auth)
+        #     response = result.json().get('access_token')
+        #     print("Status code:", result.status_code)
+        #     print("Headers:", result.headers)
+        #     print("Content-Type:", result.headers.get('Content-Type'))
+
+        #     # Check if it's JSON
+        #     try:
+        #         print("JSON Response:", response)
+        #     except Exception as e:
+        #         print("Not JSON. Raw Text Response:", result.text)
+
+        #     # Check cookies
+        #     print("Cookies:", result.cookies)
+        #     return result.cookies
+        # except Exception as e:
+        #     print("Request error:", e)
+        #     return None
+        
         
 class SpotifyAPI:
     def __init__(self):
         load_dotenv()
         self.client_id = os.getenv("SPOTIFY_CLIENT_ID")
         self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+        self.redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI")
         self.token = self.get_token()
         self.auth_header = self.get_auth_header(self.token)
+        self.sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=self.client_id, client_secret=self.client_secret, redirect_uri=self.redirect_uri, scope="playlist-modify-public"))
         
     def get_token(self):
         """
@@ -121,7 +165,20 @@ class SpotifyAPI:
                 final = ({"name": name, "artist": artist, "album": album})
                 tracks.append(final)
         return tracks
-
+    
+    def fetch_new_releases(self):
+        """
+        gets new releases from the spotify api.
+        """
+        new_releases = []
+        results = self.sp.new_releases(limit=50)
+        for i, item in enumerate(results['albums']['items']):
+            name = item['name']
+            artist = item['artists'][0]['name']
+            final = ({"name": name, "artist": artist})
+            new_releases.append(final)
+        return new_releases
+        
 class PlaylistManager:
     """
         creates a dictionary of all the playlists and their respective tracks.
@@ -828,8 +885,12 @@ if __name__ == '__main__':
     # result = ai.format_recommendations()
     # print(result)
     
-    sm = SpotifyManagement()
-    result = sm.fetch_user_songs()
+    # sm = SpotifyManagement()
+    # result = sm.fetch_user_songs()
+    # print(result)
+    
+    md = MongoDB()
+    result = md.get_token()
     print(result)
     
     

@@ -1,6 +1,9 @@
 # pkl model files/datasets
 *.pkl
 *.csv
+*.cache
+sender.py
+aged-app.py
 
 # data set folder/pycache
 datasets/
