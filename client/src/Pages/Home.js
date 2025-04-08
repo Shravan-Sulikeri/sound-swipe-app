@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import useAudioControls from "../hooks/useAudioControls";
 import Modal from "../components/common/Modal";
 import "../styling/home.css";
 import Sidebar from "../components/Sidebar";
@@ -14,10 +15,6 @@ const Home = () => {
 	const [currentSong, setCurrentSong] = useState(null);
 	const [songQueue, setSongQueue] = useState([]);
 	const [likedSongs, setLikedSongs] = useState([]);
-	const [isPlaying, setIsPlaying] = useState(false);
-	const [progress, setProgress] = useState(0);
-	const [currentTime, setCurrentTime] = useState(0);
-	const [duration, setDuration] = useState(0);
 	const [isDragging, setIsDragging] = useState(false);
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 	const [cardTransform, setCardTransform] = useState({ x: 0, y: 0, rotate: 0 });
@@ -36,6 +33,17 @@ const Home = () => {
 	const cardRef = useRef(null);
 	const createModalRef = useRef(null);
 	const deleteModalRef = useRef(null);
+
+	// audio controls
+	const {
+		isPlaying,
+		progress,
+		currentTime,
+		duration,
+		handleTimeUpdate,
+		handleLoadedMetadata,
+		controlAudio,
+	} = useAudioControls(audioRef);
 
 	const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
 	const [playlistSongs, setPlaylistSongs] = useState([]);
@@ -162,10 +170,7 @@ const Home = () => {
 
 	const handleExitSwiping = () => {
 		setIsSwiping(false);
-		if (audioRef.current) {
-			audioRef.current.pause();
-			setIsPlaying(false);
-		}
+		controlAudio("pause");
 	};
 
 	const toggleSidebar = () => {
@@ -206,11 +211,7 @@ const Home = () => {
 		}
 
 		// Reset audio
-		if (audioRef.current) {
-			audioRef.current.pause();
-			audioRef.current.currentTime = 0;
-			setIsPlaying(false);
-		}
+		controlAudio("stop");
 
 		// Get next song from queue
 		const nextSong = songQueue[0];
@@ -219,10 +220,7 @@ const Home = () => {
 			setSongQueue((prev) => prev.slice(1));
 			// Autoplay new song
 			setTimeout(() => {
-				if (audioRef.current) {
-					audioRef.current.play();
-					setIsPlaying(true);
-				}
+				controlAudio("play", { resetTime: true });
 			}, 300);
 		} else {
 			// If queue is empty, get new recommendations
@@ -237,10 +235,7 @@ const Home = () => {
 					setSongQueue(newRecommendations.slice(1));
 					// Autoplay new song
 					setTimeout(() => {
-						if (audioRef.current) {
-							audioRef.current.play();
-							setIsPlaying(true);
-						}
+						controlAudio("play");
 					}, 300);
 				} else {
 					setCurrentSong(null);
@@ -290,38 +285,15 @@ const Home = () => {
 		}
 	};
 
-	const handlePlayPause = () => {
-		if (audioRef.current) {
-			if (isPlaying) {
-				audioRef.current.pause();
-			} else {
-				audioRef.current.play();
-			}
-			setIsPlaying(!isPlaying);
-		}
-	};
-
-	const handleTimeUpdate = () => {
-		if (audioRef.current) {
-			const currentTime = audioRef.current.currentTime;
-			setCurrentTime(currentTime);
-			setProgress((currentTime / audioRef.current.duration) * 100);
-		}
-	};
-
-	const handleLoadedMetadata = () => {
-		if (audioRef.current) {
-			setDuration(audioRef.current.duration);
-		}
-	};
+	const handlePlayPause = () => controlAudio("toggle");
 
 	const handleProgressClick = (e) => {
 		if (audioRef.current) {
 			const progressBar = e.currentTarget;
 			const rect = progressBar.getBoundingClientRect();
-			const x = e.clientX - rect.left;
-			const percentage = x / rect.width;
-			audioRef.current.currentTime = percentage * audioRef.current.duration;
+			const percentage = (e.clientX - rect.left) / rect.width;
+			const seekTo = percentage * audioRef.current.duration;
+			controlAudio("seek", { seekTo });
 		}
 	};
 
