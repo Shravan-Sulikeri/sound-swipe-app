@@ -380,13 +380,8 @@ const Home = () => {
 					isOpen={createModalRef}
 					onClose={handleCloseCreateModal}
 					className="playlist-modal"
+					header="Create New Playlist"
 				>
-					<div className="modal-header">
-						<h3>Create New Playlist</h3>
-						<button className="close-modal" onClick={handleCloseCreateModal}>
-							✕
-						</button>
-					</div>
 					<div className="modal-content">
 						<p>
 							Give your playlist a name. Songs you swipe right on will be added
@@ -422,13 +417,8 @@ const Home = () => {
 					isOpen={deleteModalRef}
 					onClose={handleCancelDelete}
 					className="delete-modal"
+					header="Delete Playlist"
 				>
-					<div className="modal-header">
-						<h3>Delete Playlist</h3>
-						<button className="close-modal" onClick={handleCancelDelete}>
-							✕
-						</button>
-					</div>
 					<div className="modal-content">
 						<p>
 							Are you sure you want to delete

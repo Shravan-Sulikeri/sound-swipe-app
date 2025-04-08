@@ -1,4 +1,3 @@
-// src/hooks/useAudioControls.js
 import { useState, useCallback } from "react";
 
 const useAudioControls = (audioRef) => {
