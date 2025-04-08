@@ -1014,8 +1014,8 @@
 
 .active-playlist-indicator {
   position: fixed;
-  top: 20px;       
-  left: 20%;       
+  top: 25px;       
+  left: 5%;      
   background-color: rgba(0, 0, 0, 0.7);
   color: #1DB954;
   padding: 6px 16px;
