@@ -549,6 +549,10 @@
   overflow: hidden;
 }
 
+.swipe-button:disabled {
+	cursor: not-allowed;
+}
+
 .swipe-button::before {
   content: '';
   position: absolute;
