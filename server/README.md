@@ -7,6 +7,7 @@ This is the backend server for the SoundSwipe application, which provides music 
 - Spotify playlist integration
 - Deezer API integration for song previews and cover art
 - LLM-powered music recommendations using Groq
+- Enhanced song recommendations through Last.fm API integration 
 - RESTful API endpoints for frontend communication
 - Automatic song data enrichment with Deezer information
 
@@ -14,7 +15,7 @@ This is the backend server for the SoundSwipe application, which provides music 
 
 - Python 3.8 or higher
 - Node.js
-- API Keys (reach out for keys)
+- **API Keys (CONTACT FOR KEYS)**
 
 ## Environment Setup
 
@@ -22,6 +23,7 @@ This is the backend server for the SoundSwipe application, which provides music 
 ```env
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+LAST_FM_API_KEY=your_last_fm_key
 GROQ_API_KEY=your_groq_api_key
 API_BASE_URL=http://localhost:5000/api
 PORT=5000
@@ -59,7 +61,7 @@ sound-swipe-app/client
 ```
 
 The servers will:
-- Initialize the Spotify and Deezer API connections
+- Initialize the Spotify, LastFM, Deezer API connections
 - Preload song recommendations
 - Start listening on their respective ports
 
@@ -108,7 +110,8 @@ The server includes comprehensive error handling for:
 To modify the recommendation logic:
 1. Edit `llm_model.py`
 2. Adjust the prompt in `create_recommendation_prompt()`
-3. Modify the data processing in `fetch_user_songs()`
+3. Adjust order and method of optimization in `optimize_recommendations()`
+4. Modify the data processing in `fetch_user_songs()`
 
 ## Testing
 
@@ -122,6 +125,7 @@ To test the server:
 - The server preloads song recommendations on startup
 - Deezer API is used for song previews and cover art
 - Groq LLM is used for intelligent song recommendations
+- Last.fm API is used for further recommendation enhancements after LLM
 - CORS is enabled for frontend communication 
 
 ## Troubleshooting
@@ -141,14 +145,18 @@ If the issue persists, don’t hesitate to reach out, and we will work together 
 ## Issues to Address ~ TODOS
 ###### ***NOTE ->** Once an issue has been resolved, either remove it from this list or mark it as completed to keep the to-do list up to date.*
 
-1. **Duplicate Song Recommendations**
+&emsp;  ~~1. **Duplicate Song Recommendations**~~  
+&emsp; &emsp; &emsp;
+ ~~- The recommendation logic currently suggests the same song multiple times across different playlists. This needs to be refined to ensure unique recommendations per playlist.~~
 
-   - The recommendation logic currently suggests the same song multiple times across different playlists. This needs to be refined to ensure unique recommendations per playlist.
-
-2. **Inconsistent Track Retrieval from Deezer**
+1. **Inconsistent Track Retrieval from Deezer**
 
    - Fetching track information from Deezer can be unreliable, particularly for songs featuring multiple artists. In these cases, a `403` error is returned, indicating that the song cannot be found. Investigate potential workarounds or alternative data sources.
 
-3. **Playlist Integration with Spotify**
+2. **Playlist Integration with Spotify**
    - After retrieving tracks from Deezer, the next step is transforming the data back to the Spotify API to generate user playlists. This integration needs further development and testing.
+
+3. **Enhance Recommendation Accuracy Using Last.fm** 
+   - The recommendation logic has been significantly enhanced with the current integration of Last.fm data. Moving forward, lets aim to enrich the system by incorporating additional sources such as top 500 charts, trending songs, and popular artists to provide even more accurate and diverse recommendations.
+
 

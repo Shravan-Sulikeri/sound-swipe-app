@@ -10,10 +10,6 @@ from groq import Groq
 import traceback
 import os 
 import base64
-from requests import post, get
-import json
-from tqdm import tqdm
-from groq import Groq
 from urllib.parse import quote
 import re
 import urllib
@@ -24,6 +20,7 @@ import urllib
 #NOTE: The prompt engineering for llm is spotty will recommend song more than once, take with grain of salt.
 #NOTE: When fetching track info errors will present, may notice 403 error simply do to not be able to get info not pertinent atm but will need to fix later.
 #NOTE: Will later need to get songs back from added playlist to formulate new spotify playlist. 
+#NOTE: Work on separating the classes into their own files, this is a monolithic file and needs to be broken up for better readability and maintainability.
 #**
 class GlobalVariables:
     def __init__(self):
@@ -170,7 +167,119 @@ class PlaylistManager:
             return playlist_tracks
         else:
             return "Invalid input, enter 1 or 2."
+
+class LastFmAPI: #! <---- This is the class that will be used to get the last.fm data, this is helping to increase the recommendations and get more data on the songs
+    def __init__(self):
+        load_dotenv()
+        self.api_key = os.getenv("LAST_FM_API_KEY")
+    
+    def get_similar_artist(self, artist_name): #! <---- This is the function that will be used to get the similar artist from last.fm
+        """
+        Fetches similar artist from Last.fm API.
         
+        Args:
+            artist_name: Name of the artist
+            
+        Returns:
+            List of similar artist or None if not found
+        """
+        url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'similarartists' in data and 'artist' in data['similarartists']:
+                similar_artists = [x['name'] for x in data['similarartists']['artist']]
+                return similar_artists
+            else:
+                print(f"No similar artists found for {artist_name}")
+                return None
+        else:
+            print(f"LastFM API error {response.status_code} when finding similar artists for {artist_name}")
+            return None
+    
+    def get_similar_tracks(self, track_name, artist_name): #! <---- This is the function that will be used to get the similar tracks from last.fm
+        """
+        Fetches similar tracks from Last.fm API.
+        
+        Args:
+            track_name: Name of the track
+            artist_name: Name of the artist
+            
+        Returns:
+            List of similar tracks or None if not found
+        """
+        url = f"http://ws.audioscrobbler.com/2.0/?method=track.getsimilar&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'similartracks' in data and 'track' in data['similartracks']:
+                similar_tracks = [
+                    {"name": x['name'], "artist": x['artist']['name']}
+                    for x in data['similartracks']['track']
+                ]
+                return similar_tracks
+            else:
+                print(f"No similar tracks found for {track_name} by {artist_name}")
+                return None
+        else:
+            print(f"LastFM API error {response.status_code} when finding similar tracks for {track_name}")
+            return None
+    
+    def get_track_info(self, track_name, artist_name): #! <---- This is the function that will be used to get the track info from last.fm
+        """
+        Fetches detailed track information from Last.fm API.
+        
+        Args:
+            track_name: Name of the track
+            artist_name: Name of the artist
+            
+        Returns:
+            Track info dictionary or None if not found
+        """
+        url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'track' in data:
+                return data['track']
+            else:
+                print(f"No track info found for {track_name} by {artist_name}")
+                return None
+        else:
+            print(f"LastFM API error {response.status_code} when getting track info for {track_name}")
+            return None
+            
+    def get_artist_top_tracks(self, artist_name, limit=10): #! <---- This is the function that will be used to get the top tracks from last.fm
+        """
+        Fetches top tracks from an artist from Last.fm API.
+        
+        Args:
+            artist_name: Name of the artist
+            limit: Maximum number of tracks to return
+            
+        Returns:
+            List of top tracks or None if not found
+        """
+        url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getTopTracks&artist={quote(artist_name)}&api_key={self.api_key}&format=json&limit={limit}"
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'toptracks' in data and 'track' in data['toptracks']:
+                top_tracks = [
+                    {"name": track['name'], "artist": artist_name}
+                    for track in data['toptracks']['track']
+                ]
+                return top_tracks
+            else:
+                print(f"No top tracks found for {artist_name}")
+                return None
+        else:
+            print(f"LastFM API error {response.status_code} when getting top tracks for {artist_name}")
+            return None
 class RecommendationManager:
     def __init__(self):
         load_dotenv()
@@ -180,8 +289,9 @@ class RecommendationManager:
         self.groq = Groq(api_key=self.api_key)
         self.ai_response = None
         self.storage = GlobalVariables()
+        self.similarity = LastFmAPI()
     
-    def create_recommendation_prompt(self): #! <--- Found key error the more recommended songs, the llm will spazz and not correctly output. Keep it a max of 5 songs, may need to add dynamic altering for larger playlist 
+    def create_recommendation_prompt(self):
         """
         Enhanced method with more robust error handling and debugging
         """
@@ -201,11 +311,11 @@ class RecommendationManager:
                     f"- {name}: {len(tracks)} tracks"
                     for name, tracks in playlists.items()
                 )
-                + "\n\nProvide a minimum of 3 song recommendations for each playlist.\n" #! CRITICAL <---- prompt engineering is not sound recommendations are on avg %50-60% correct lets work on getting closer to %80 approval
+                + "\n\nProvide a minimum of 3 song recommendations for each playlist.\n"
                 "IMPORTANT REQUIREMENTS:\n"
                 "1. Recommend songs NOT in the existing playlists\n"
                 "2. Each recommendation should be unique\n"
-                "3. Prioritize the mood and styles of the song in the playlist to match\n\n"
+                "3. Prioritize the mood and styles of the song in the playlist to match\n"
                 "4. Once a song has been recommended it should NOT be recommended again\n"
                 "5. Songs should be a combination of new and old, popular and not as well\n"
                 "6. Prioritize fitting the playlist's central theme, decide whether it is stylic, cultural, occasional, or pertains to a certain artist\n"
@@ -280,19 +390,215 @@ class RecommendationManager:
                 ]
             self.storage.tracks = formatted_tracks
             return self.storage.tracks
-
+        
         except Exception as e:
             print("ERROR IN FORMATTING RECOMMENDATIONS:")
             traceback.print_exc()
             return {}
+    
+    def create_artist_recommendations_prompt(self, artist_name):
+        """
+        Generate song recommendations for a specific artist using LLM
+        """
+        try:
+            prompt = (
+                f"Recommend 3 popular songs by {artist_name} or music that sounds very similar to {artist_name}'s style.\n\n"
+                "RESPOND EXACTLY IN THIS JSON FORMAT:\n"
+                "[\n"
+                "  {\"name\": \"Song1\", \"artist\": \"Artist1\"},\n"
+                "  {\"name\": \"Song2\", \"artist\": \"Artist2\"},\n"
+                "  {\"name\": \"Song3\", \"artist\": \"Artist3\"}\n"
+                "]"
+            )
+
+            chat_completion = self.groq.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a precise music recommendation AI. ONLY return valid JSON."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                model=self.model,
+                temperature=0.7,
+                max_tokens=1000,
+                response_format={"type": "json_object"},  
+                stream=False,
+            )
+            full_response = chat_completion.choices[0].message.content
+            try:
+                parsed_response = json.loads(full_response)
+                return parsed_response
+            except json.JSONDecodeError as json_err:
+                print(f"JSON PARSING ERROR for artist {artist_name}:")
+                print(json_err)
+                return []
+
+        except Exception as e:
+            print(f"ERROR GENERATING RECOMMENDATIONS FOR ARTIST {artist_name}:")
+            traceback.print_exc()
+            return []
+    
+    def optimize_recommendations(self): #! <---- This is the function that will be used to optimize the recommendations using last.fm
+        """
+        Optimizes recommendations by creating triplets with no duplications:
+        1. Original LLM recommendation
+        2. Similar track from Last.fm
+        3. Top track from similar artist
+        """
+        recommendations = self.format_recommendations()
+        optimized_recommendations = {}
+        all_recommended_tracks = set()
         
+        for playlist_id, tracks in recommendations.items():
+            optimized_tracks = []
+            
+            for track in tracks:
+                track_name = track["track_name"]
+                artist_name = track["artist_name"]
+                
+                print(f"\n🎧 Processing: {track_name} by {artist_name}")
+                triplet = []
+                
+                # 1. Add the original LLM recommendation if not already added
+                track_key = f"{track_name.lower()}|{artist_name.lower()}"
+                if track_key not in all_recommended_tracks:
+                    print(f"✅ Original LLM recommendation: {track_name} by {artist_name}")
+                    triplet.append({
+                        "track_name": track_name,
+                        "artist_name": artist_name,
+                        "source": "llm"
+                    })
+                    all_recommended_tracks.add(track_key)
+                else:
+                    print(f"⚠️ Skipping duplicate original recommendation: {track_name} by {artist_name}")
+                    continue
+                
+                # 2. Find similar track from Last.fm
+                similar_tracks = self.similarity.get_similar_tracks(track_name, artist_name)
+                if similar_tracks:
+                    for similar in similar_tracks:
+                        similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
+                        if similar_key not in all_recommended_tracks:
+                            print(f"✅ Last.fm similar track: {similar['name']} by {similar['artist']}")
+                            triplet.append({
+                                "track_name": similar["name"],
+                                "artist_name": similar["artist"],
+                                "source": "lastfm_similar"
+                            })
+                            all_recommended_tracks.add(similar_key)
+                            break
+                
+                if len(triplet) < 2:
+                    simplified_name = re.sub(r'\([^)]*\)', '', track_name).strip()
+                    simplified_name = re.sub(r'\[[^\]]*\]', '', simplified_name).strip()
+                    if simplified_name != track_name:
+                        similar_tracks = self.similarity.get_similar_tracks(simplified_name, artist_name)
+                        if similar_tracks:
+                            for similar in similar_tracks:
+                                similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
+                                if similar_key not in all_recommended_tracks:
+                                    print(f"✅ Last.fm similar track (simplified name): {similar['name']} by {similar['artist']}")
+                                    triplet.append({
+                                        "track_name": similar["name"],
+                                        "artist_name": similar["artist"],
+                                        "source": "lastfm_similar"
+                                    })
+                                    all_recommended_tracks.add(similar_key)
+                                    break
+                                
+                if len(triplet) < 2:
+                    top_tracks = self.similarity.get_artist_top_tracks(artist_name, limit=5)
+                    if top_tracks:
+                        for top in top_tracks:
+                            top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
+                            if top_key not in all_recommended_tracks:
+                                print(f"✅ Last.fm artist top track: {top['name']} by {top['artist']}")
+                                triplet.append({
+                                    "track_name": top["name"],
+                                    "artist_name": top["artist"],
+                                    "source": "lastfm_artist_top"
+                                })
+                                all_recommended_tracks.add(top_key)
+                                break
+                
+                # 3. Add a track from similar artist
+                if len(triplet) < 3:
+                    similar_artists = self.similarity.get_similar_artist(artist_name)
+                    if similar_artists:
+                        for similar_artist in similar_artists:
+                            if len(triplet) >= 3:
+                                break
+                                
+                            artist_top_tracks = self.similarity.get_artist_top_tracks(similar_artist, limit=5)
+                            if artist_top_tracks:
+                                for top in artist_top_tracks:
+                                    top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
+                                    if top_key not in all_recommended_tracks:
+                                        print(f"✅ Similar artist track: {top['name']} by {top['artist']}")
+                                        triplet.append({
+                                            "track_name": top["name"],
+                                            "artist_name": top["artist"],
+                                            "source": "lastfm_similar_artist"
+                                        })
+                                        all_recommended_tracks.add(top_key)
+                                        break
+                optimized_tracks.extend(triplet)
+            
+            optimized_recommendations[playlist_id] = optimized_tracks
+        final_recommendations = {}
+        for playlist_id, tracks in optimized_recommendations.items():
+            seen_in_playlist = set()
+            unique_tracks = []
+            
+            for track in tracks:
+                track_key = f"{track['track_name'].lower()}|{track['artist_name'].lower()}"
+                if track_key not in seen_in_playlist:
+                    unique_tracks.append(track)
+                    seen_in_playlist.add(track_key)
+            
+            final_recommendations[playlist_id] = unique_tracks
+        self.storage.tracks = final_recommendations
+        return final_recommendations
+    
+    def get_enhanced_recommendations(self):
+        """
+        Main method to get enhanced recommendations with LastFM validation
+        and robust fallback mechanisms
+        """
+        try:
+            initial_recommendations = self.format_recommendations()
+            
+            if not initial_recommendations:
+                print("Failed to generate initial recommendations.")
+                return {}
+            
+            try:
+                print("\n🔍 Optimizing recommendations using LastFM data...")
+                optimized_recommendations = self.optimize_recommendations()
+                if optimized_recommendations and len(optimized_recommendations) > 0:
+                    return optimized_recommendations
+                else:
+                    print("⚠️ Optimization failed, falling back to initial recommendations.")
+                    return initial_recommendations
+                    
+            except Exception as e:
+                print("⚠️ Error during optimization, falling back to initial recommendations:")
+                traceback.print_exc()
+                return initial_recommendations
+                
+        except Exception as e:
+            print("❌ Critical error in recommendation process:")
+            traceback.print_exc()
+            return {}
 class SpotifyManagement:
     """"
-        takes ai recommedned tracks, goes to deezer, and completes info
-        formats for frontend to use, including preview_url, cover_art, etc.
-        This class is responsible for managing the entire process of
-        fetching user playlists, generating song recommendations, and
-        retrieving detailed track information using the Deezer API.
+        Takes AI recommended tracks, uses the optimized flow with LastFM,
+        and completes info using Deezer API.
+        Formats everything for frontend use, including preview_url, cover_art, etc.
     """
     def __init__(self):
         self.recommendation_manager = RecommendationManager()
@@ -303,20 +609,20 @@ class SpotifyManagement:
     
     def get_tracks(self):
         """
-        Retrieves tracks from the llm prompting.
+        Retrieves tracks from the optimized LLM + LastFM recommendation process.
         Returns:
             List of dictionaries with track details.
         """
-        storage = self.storage_manager.tracks 
-        playlists = self.recommendation_manager.format_recommendations()
-        storage = playlists
-        transformed_playlists = storage
-        if not transformed_playlists:
+        # Use the optimized recommendations instead of just format_recommendations
+        optimized_playlists = self.recommendation_manager.get_enhanced_recommendations()
+        self.storage_manager.tracks = optimized_playlists
+        
+        if not optimized_playlists:
             print("No recommendations available.")
             return []
         
         all_tracks = []
-        for key, value in transformed_playlists.items():
+        for key, value in optimized_playlists.items():
             for track in value:
                 track_name = track['track_name']
                 artist_name = track['artist_name']
@@ -326,7 +632,7 @@ class SpotifyManagement:
                 })
         
         self.storage_manager.music = all_tracks
-        print("Tracks retrieved successfully.")
+        print(f"Successfully retrieved {len(all_tracks)} optimized tracks.")
         return self.storage_manager.music
     
     def simplify_track_name(self, track_name):
@@ -350,7 +656,7 @@ class SpotifyManagement:
         
         return artist_string.strip()
     
-    def get_deezer_track_info(self, track_name, artist_name=''): #! This is the new method for getting data as alt to spotify safer and more accessible
+    def get_deezer_track_info(self, track_name, artist_name=''):
         """
         Takes track info and uses deezer api to get necessary info that will be used when sending to frontend. 
         Returns:
@@ -409,33 +715,39 @@ class SpotifyManagement:
             print(f"Error fetching track by ID {track_id}: {e}")
             return None
     
-    def fetch_user_songs(self): #! This new fetching_users implementation uses deezer api, this will still work when sinking back to front end no worries
+    def fetch_user_songs(self):
         """
-        Takes data from get_tracks() function and uses deezer api to get rest of necessary data, ie. preview_url, cover_art, etc
-        will later be stored and sent to frontend
-    
+        Takes data from optimized get_tracks() function and uses deezer api to get rest of necessary data.
+        Ensures no duplications in the final output.
+        
         Returns:
             Track data as a dictionary.
         """
         self.tracks = self.get_tracks()
-        print('\nFetching track data using deezer api instead of spotify, will take time so please be patient...\n')
+        print('\nFetching track data using deezer api for optimized recommendations...\n')
         
         if not self.tracks:
             return []
-            
+                
         track_data = []
-        for track in self.tracks:
+        track_ids_seen = set() 
+        
+        for track in tqdm(self.tracks, desc="Processing tracks", unit="track"):
             try:
                 track_name = track['name']
                 artist = track.get('artist', '')
                 primary_artist = self.extract_primary_artist(artist)
+                
+                print(f"\nProcessing: {track_name} by {primary_artist}")
                 deezer_result = self.get_deezer_track_info(track_name, primary_artist)
                 if not deezer_result:
+                    print(f"  Trying broader search without artist constraint...")
                     deezer_result = self.get_deezer_track_info(track_name, "")
                     
                 if not deezer_result:
                     simplified_name = self.simplify_track_name(track_name)
                     if simplified_name != track_name:
+                        print(f"  Trying simplified name: '{simplified_name}'")
                         deezer_result = self.get_deezer_track_info(simplified_name, primary_artist)
                     
                 if not deezer_result:
@@ -443,6 +755,12 @@ class SpotifyManagement:
                     continue
                     
                 track_id = deezer_result['id']
+                if track_id in track_ids_seen:
+                    print(f"Skipping duplicate track ID: {track_id} for {track_name}")
+                    continue
+                    
+                track_ids_seen.add(track_id)
+                
                 track_details = self.get_deezer_track_by_id(track_id)
                 
                 if not track_details:
@@ -454,16 +772,52 @@ class SpotifyManagement:
                     'image': track_details['album']['cover_xl'],
                     'artist': track_details['artist']['name'],
                     'preview_url': track_details['preview'],
-                    'deezer_url': track_details['link']
+                    'deezer_url': track_details['link'],
+                    'album': track_details['album']['title'],
+                    'duration': track_details.get('duration', 0),
+                    'lastfm_verified': True
                 })
                 
             except Exception as e:
                 print(f"Error processing {track['name']}: {e}")
                 continue
-                
+                    
         self.storage_manager.finalized_data = track_data
+        print(f"\nSuccessfully processed {len(track_data)} unique tracks with Deezer data")
         return self.storage_manager.finalized_data
-    
+
+    def organize_by_playlist(self): #! <---- Dont know why this is added, this cn be removed it not needed or planned to be used 
+        """
+        Organizes the finalized track data back into playlist structure
+        Returns:
+            Dictionary with playlist IDs as keys and track lists as values
+        """
+        if not self.storage_manager.finalized_data or not self.storage_manager.tracks:
+            print("No data available to organize by playlist")
+            return {}
+            
+        organized_data = {}
+        track_mapping = {}
+        for track in self.storage_manager.finalized_data:
+            key = f"{track['name'].lower()} - {track['artist'].lower()}"
+            track_mapping[key] = track
+        for playlist_id, tracks in self.storage_manager.tracks.items():
+            playlist_tracks = []
+            for track in tracks:
+                track_name = track['track_name']
+                artist_name = track['artist_name']
+                key = f"{track_name.lower()} - {artist_name.lower()}"
+                if key in track_mapping:
+                    playlist_tracks.append(track_mapping[key])
+                else:
+                    for map_key, map_track in track_mapping.items():
+                        if track_name.lower() in map_key:
+                            playlist_tracks.append(map_track)
+                            break
+            
+            organized_data[playlist_id] = playlist_tracks
+            
+        return organized_data  
 if __name__ == '__main__':
     
     # pm = PlaylistManager()
@@ -477,6 +831,8 @@ if __name__ == '__main__':
     sm = SpotifyManagement()
     result = sm.fetch_user_songs()
     print(result)
+    
+    
     
     # {
 #   Example_Format ---> {"Xavier Playlist": [
