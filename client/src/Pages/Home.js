@@ -4,9 +4,12 @@ import Modal from "../components/common/Modal";
 import "../styling/home.css";
 import Sidebar from "../components/Sidebar";
 import MainContent from "../components/Main";
-import { getSampleTracks, getRecommendations } from "../services/api";
-
-import { getSongsFromPlaylist } from "../services/api";
+import {
+	getSampleTracks,
+	getRecommendations,
+	getSongsFromPlaylist,
+	API_BASE_URL,
+} from "../services/api";
 
 const Home = () => {
 	const [isSwiping, setIsSwiping] = useState(false);
@@ -76,7 +79,7 @@ const Home = () => {
 	}, []);
 
 	const handleLogout = () => {
-		window.location.href = "http://localhost:3001/logout";
+		window.location.href = `${API_BASE_URL}/logout`;
 	};
 
 	const handleOpenCreateModal = () => {

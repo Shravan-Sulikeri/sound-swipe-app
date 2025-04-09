@@ -185,10 +185,12 @@ def callback():
         print(f"Error exchanging code for access token: {e}")
         return jsonify({"error": "Authentication failed"}), 400
 
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect("http://localhost:3000/")
+
 
 @app.route('/api/me')
 def get_me():
@@ -212,6 +214,7 @@ def get_me():
     except Exception as e:
         print(f"Error fetching user data: {e}")
         return jsonify({"error": "Failed to fetch user data"}), 500
+
 
 @app.route('/api/playlists')
 def get_playlists():

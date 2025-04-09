@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import Login from "./Login";
+import Login from "./Pages/Login";
 import Home from "./Pages/Home";
+import { API_BASE_URL } from "./services/api";
 
 function App() {
 	const [userData, setUserData] = useState(null); // KEEPING USER DATA INSTEAD OF TOKEN
@@ -13,13 +14,13 @@ function App() {
 	// Step 2: Fetch user data from the backend
 	const fetchUserData = async () => {
 		try {
-			const response = await fetch("http://localhost:3001/api/me", {
+			const response = await fetch(`${API_BASE_URL}/api/me`, {
 				credentials: "include",
 			});
 			if (response.status === 401) {
 				// Session expired or doesnt exist
 				setIsAuthenticated(false);
-				window.location.href = "http://localhost:3001/login"; // Redirect to login
+				window.location.href = `${API_BASE_URL}/login`; // Redirect to login
 			} else {
 				const data = await response.json();
 				setUserData(data);
@@ -33,7 +34,7 @@ function App() {
 	useEffect(() => {
 		const checkAuth = async () => {
 			try {
-				const response = await fetch("http://localhost:3001/api/check-auth", {
+				const response = await fetch(`${API_BASE_URL}/api/check-auth`, {
 					credentials: "include", // Include session cookies
 				});
 				const data = await response.json();
