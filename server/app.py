@@ -42,16 +42,11 @@ Session(app)
 # Configure CORS
 CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://localhost:5000"]}}, supports_credentials=True)
 
-# Initialize the Spotify manager
 print("Initializing Spotify manager...")
-spotify_manager = SpotifyManagement()
-print("Generating initial song recommendations, please be patient...\n")
-try:
-    preloaded_songs = spotify_manager.fetch_user_songs()
-    print(f"Generated {len(preloaded_songs)} songs successfully!")
-except Exception as e:
-    print(f"Error loading songs: {e}")
-    preloaded_songs = []
+spotify_manager = SpotifyManagement() 
+print("Login to generate personalized recommendations...\n")
+
+user_recommendation_cache = {}
 
 # Middleware equivalent to refresh token if expired
 def refresh_token_if_expired():
@@ -64,14 +59,11 @@ def refresh_token_if_expired():
     expires_in = token_data.get('expires_in', 3600)
     timestamp = token_data.get('timestamp', 0)
     
-    # Check if token is expired
     is_expired = time.time() - timestamp > expires_in
     
     if not is_expired:
-        # Token is still valid
         return access_token, None, 200
     
-    # Token is expired, refresh it
     try:
         auth_header = base64.b64encode(f"{CLIENT_ID}:{CLIENT_SECRET}".encode()).decode()
         
@@ -91,11 +83,9 @@ def refresh_token_if_expired():
             return None, {"error": "Failed to refresh token"}, 400
         
         response_data = response.json()
-        
-        # Update the session with the new token
         session['token'] = {
             'access_token': response_data['access_token'],
-            'refresh_token': refresh_token,  # Spotify may not return a new refresh token
+            'refresh_token': refresh_token,  
             'expires_in': response_data['expires_in'],
             'timestamp': time.time()
         }
@@ -167,8 +157,6 @@ def callback():
             return jsonify({"error": "Authentication failed"}), 400
         
         response_data = response.json()
-        
-        # Store token information in session
         session['token'] = {
             'access_token': response_data['access_token'],
             'refresh_token': response_data['refresh_token'],
@@ -177,8 +165,6 @@ def callback():
         }
         
         print(f"Access Token: {response_data['access_token'][:10]}...")
-        
-        # Redirect back to the React app
         return redirect("http://localhost:3000/")
     
     except Exception as e:
@@ -242,17 +228,60 @@ def get_playlists():
 @app.route('/api/recommendations')
 def get_recommendations():
     """
-    Endpoint to get music recommendations based on user's Spotify playlists
+    Endpoint to get music recommendations based on user's Spotify playlists.
+    Uses personalized recommendations if user is authenticated.
     """
     try:
+        access_token, error_response, status_code = refresh_token_if_expired()
+        
+        if error_response:
+            return jsonify({"error": "Authentication required for recommendations"}), status_code
+        
+        user_response = requests.get(
+            "https://api.spotify.com/v1/me",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        
+        if user_response.status_code != 200:
+            return jsonify({"error": "Failed to fetch user data"}), user_response.status_code
+        
+        user_id = user_response.json().get('id')
+        
+        if user_id in user_recommendation_cache:
+            print(f"Returning cached recommendations for user {user_id}")
+            return jsonify({
+                'status': 'success',
+                'data': user_recommendation_cache[user_id],
+                'personalized': True,
+                'cached': True
+            })
+        
+        print(f"Generating personalized recommendations for user {user_id}...")
+        user_spotify_manager = SpotifyManagement(user_token=access_token)
+        
+        user_songs = user_spotify_manager.fetch_user_songs()
+        
+        if not user_songs or len(user_songs) == 0:
+            return jsonify({
+                'status': 'error',
+                'message': 'No recommendations could be generated. Please try again or check your playlists.'
+            }), 404
+        
+        user_recommendation_cache[user_id] = user_songs
+        
         return jsonify({
             'status': 'success',
-            'data': preloaded_songs
+            'data': user_songs,
+            'personalized': True,
+            'cached': False
         })
+        
     except Exception as e:
+        print(f"Error generating recommendations: {e}")
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': 'Unable to generate recommendations at this time',
+            'error_info': str(e)
         }), 500
 
 @app.route('/api/session-check', methods=['POST'])

@@ -15,7 +15,6 @@ import re
 import urllib
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from pymongo import MongoClient
 
 #**IMPORTANT** please read the all NOTES
 #NOTE: Feel free to test your own Spotify playlist if you have one, within the fetch_current_user function.
@@ -29,56 +28,23 @@ class GlobalVariables:
     def __init__(self):
         self.tracks = None
         self.music = None
-        self.finalized_data = None
-
-class MongoDB:
-    def __init__(self):
-        load_dotenv()
-        self.mongo_auth = os.getenv("MONGO_AUTH")
-    
-    def get_token(self):
-        cookies = {
-        'connect.sid': 's%3A5Lm3YAz4_KO-GGLG0R1nTljaJYwIeYtO.gcgUhCXqH7K3rVsTGG3lknbdGkGYVtGnAAG5avJBXzw'  # replace with the actual cookie value
-        }
-
-        # Make the request to get the token, send the cookie along
-        response = requests.get("http://localhost:3001/api/token", cookies=cookies)
-
-        if response.status_code == 200:
-            # If everything goes well, extract the token from the response
-            print("Token:", response.json())  # Here you should get the token
-        else:
-            raise Exception("Failed to get token:", response.status_code, response.text)
-        # try:
-        #     result = requests.get(self.mongo_auth)
-        #     response = result.json().get('access_token')
-        #     print("Status code:", result.status_code)
-        #     print("Headers:", result.headers)
-        #     print("Content-Type:", result.headers.get('Content-Type'))
-
-        #     # Check if it's JSON
-        #     try:
-        #         print("JSON Response:", response)
-        #     except Exception as e:
-        #         print("Not JSON. Raw Text Response:", result.text)
-
-        #     # Check cookies
-        #     print("Cookies:", result.cookies)
-        #     return result.cookies
-        # except Exception as e:
-        #     print("Request error:", e)
-        #     return None
-        
-        
+        self.finalized_data = None    
 class SpotifyAPI:
-    def __init__(self):
+    def __init__(self, external_token=None):
         load_dotenv()
         self.client_id = os.getenv("SPOTIFY_CLIENT_ID")
         self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
         self.redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI")
-        self.token = self.get_token()
+        self.token = external_token if external_token else self.get_token()
         self.auth_header = self.get_auth_header(self.token)
-        self.sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=self.client_id, client_secret=self.client_secret, redirect_uri=self.redirect_uri, scope="playlist-modify-public"))
+        if not external_token:
+            self.sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+                client_id=self.client_id, 
+                client_secret=self.client_secret, 
+                redirect_uri=self.redirect_uri, 
+                scope="user-read-private user-read-email playlist-modify-public playlist-modify-private playlist-read-private"))
+        else:
+            self.sp = spotipy.Spotify(auth=external_token)
         
     def get_token(self):
         """
@@ -137,9 +103,9 @@ class SpotifyAPI:
         if len(json_result) == 0:
             return 'No playlists found'
         else:
-            for playlist in json_result:
-                name = playlist['name']
-                id = playlist['id']
+            for x in json_result:
+                name = x['name']
+                id = x['id']
                 final = ({"name": name, "id": id})
                 playlist.append(final)
         return playlist
@@ -184,9 +150,10 @@ class PlaylistManager:
         creates a dictionary of all the playlists and their respective tracks.
         
     """
-    def __init__(self):
-        self.spotify_api = SpotifyAPI()
+    def __init__(self, user_token=None):
+        self.spotify_api = SpotifyAPI(external_token=user_token)
         self.token = self.spotify_api.token
+        self.user_token = user_token
     
     def combining_playlist_and_track(self):
         """
@@ -199,7 +166,7 @@ class PlaylistManager:
         x = 1
         if (x == 2):
             print("\nRetrieving your playlist and tracks, please wait patiently...\n")
-            playlist = self.spotify_api.fetch_current_user_playlists(self.token)
+            playlist = self.spotify_api.fetch_logged_in_user_playlist(self.token)
             for value in tqdm(playlist, desc="Fetching playlists and tracks... ", unit="playlist", bar_format="{l_bar}{bar}✅ {n_fmt}/{total_fmt} [{elapsed}]", colour="green"):
                 pl_id = value['id']
                 pl_name = value['name']
@@ -214,7 +181,10 @@ class PlaylistManager:
                 formatted_output += "\n\n"
             return formatted_output
         elif (x == 1):
-            playlist = self.spotify_api.fetch_current_user_playlists(self.token)
+            if self.user_token:
+                playlist = self.spotify_api.fetch_logged_in_user_playlist(self.token)
+            else:
+                playlist = self.spotify_api.fetch_current_user_playlists(self.token)
             for value in tqdm(playlist, desc="Fetching playlists and tracks... ", unit="playlist", bar_format="{l_bar}{bar}✅ {n_fmt}/{total_fmt} [{elapsed}]", colour="green"):
                 pl_id = value['id']
                 pl_name = value['name']
@@ -338,11 +308,11 @@ class LastFmAPI: #! <---- This is the class that will be used to get the last.fm
             print(f"LastFM API error {response.status_code} when getting top tracks for {artist_name}")
             return None
 class RecommendationManager:
-    def __init__(self):
+    def __init__(self, user_token=None):
         load_dotenv()
         self.api_key = os.getenv("GROQ_API_KEY")
         self.model = 'llama-3.3-70b-versatile'
-        self.combinator = PlaylistManager()
+        self.combinator = PlaylistManager(user_token=user_token)
         self.groq = Groq(api_key=self.api_key)
         self.ai_response = None
         self.storage = GlobalVariables()
@@ -498,7 +468,34 @@ class RecommendationManager:
             print(f"ERROR GENERATING RECOMMENDATIONS FOR ARTIST {artist_name}:")
             traceback.print_exc()
             return []
-    
+    def incorporate_new_releases(self):
+        """
+        Fetches new releases from Spotify and incorporates them into the recommendation process
+        """
+        try:
+            print("Fetching new music releases from Spotify...")
+            new_releases = self.combinator.spotify_api.fetch_new_releases()
+            
+            if not new_releases or len(new_releases) == 0:
+                print("No new releases found or error fetching them.")
+                return None
+                
+            print(f"Found {len(new_releases)} new releases")
+            import random
+            if len(new_releases) > 15:
+                sampled_releases = random.sample(new_releases, 15)
+            else:
+                sampled_releases = new_releases
+                
+            if not hasattr(self, 'new_releases_pool') or not self.new_releases_pool:
+                self.new_releases_pool = sampled_releases
+                
+            return self.new_releases_pool
+        except Exception as e:
+            print("ERROR FETCHING NEW RELEASES:")
+            traceback.print_exc()
+            return None
+        
     def optimize_recommendations(self): #! <---- This is the function that will be used to optimize the recommendations using last.fm
         """
         Optimizes recommendations by creating triplets with no duplications:
@@ -606,6 +603,27 @@ class RecommendationManager:
                 optimized_tracks.extend(triplet)
             
             optimized_recommendations[playlist_id] = optimized_tracks
+        
+        new_releases = self.incorporate_new_releases()
+        if new_releases:
+            for playlist_id, tracks in optimized_recommendations.items():
+                if len(tracks) < 12:  
+                    added_count = 0
+                    for release in new_releases:
+                        if added_count >= 2:  
+                            break
+                            
+                        release_key = f"{release['name'].lower()}|{release['artist'].lower()}"
+                        if release_key not in all_recommended_tracks:
+                            print(f"✅ Adding new release: {release['name']} by {release['artist']} to playlist {playlist_id}")
+                            tracks.append({
+                                "track_name": release["name"],
+                                "artist_name": release["artist"],
+                                "source": "new_release"
+                            })
+                            all_recommended_tracks.add(release_key)
+                            added_count += 1
+                            
         final_recommendations = {}
         for playlist_id, tracks in optimized_recommendations.items():
             seen_in_playlist = set()
@@ -624,7 +642,7 @@ class RecommendationManager:
     def get_enhanced_recommendations(self):
         """
         Main method to get enhanced recommendations with LastFM validation
-        and robust fallback mechanisms
+        and robust fallback mechanisms, now including new releases
         """
         try:
             initial_recommendations = self.format_recommendations()
@@ -633,8 +651,10 @@ class RecommendationManager:
                 print("Failed to generate initial recommendations.")
                 return {}
             
+            self.incorporate_new_releases()
+            
             try:
-                print("\n🔍 Optimizing recommendations using LastFM data...")
+                print("\n🔍 Optimizing recommendations using LastFM data and new releases...")
                 optimized_recommendations = self.optimize_recommendations()
                 if optimized_recommendations and len(optimized_recommendations) > 0:
                     return optimized_recommendations
@@ -651,18 +671,20 @@ class RecommendationManager:
             print("❌ Critical error in recommendation process:")
             traceback.print_exc()
             return {}
+        
 class SpotifyManagement:
     """"
         Takes AI recommended tracks, uses the optimized flow with LastFM,
         and completes info using Deezer API.
         Formats everything for frontend use, including preview_url, cover_art, etc.
     """
-    def __init__(self):
-        self.recommendation_manager = RecommendationManager()
-        self.spotify_api = SpotifyAPI()
+    def __init__(self, user_token=None):
+        self.recommendation_manager = RecommendationManager(user_token=user_token)
+        self.spotify_api = SpotifyAPI(external_token=user_token)
         self.token = self.spotify_api.token
         self.storage_manager = GlobalVariables()
         self.tracks = None
+        self.user_token = user_token
     
     def get_tracks(self):
         """
@@ -670,7 +692,6 @@ class SpotifyManagement:
         Returns:
             List of dictionaries with track details.
         """
-        # Use the optimized recommendations instead of just format_recommendations
         optimized_playlists = self.recommendation_manager.get_enhanced_recommendations()
         self.storage_manager.tracks = optimized_playlists
         
@@ -822,6 +843,8 @@ class SpotifyManagement:
                 
                 if not track_details:
                     track_details = deezer_result
+                
+                is_new_release = track.get('source') == 'new_release'
                     
                 track_data.append({
                     'name': track_details['title'],
@@ -832,7 +855,8 @@ class SpotifyManagement:
                     'deezer_url': track_details['link'],
                     'album': track_details['album']['title'],
                     'duration': track_details.get('duration', 0),
-                    'lastfm_verified': True
+                    'lastfm_verified': True,
+                    'is_new_release': is_new_release
                 })
                 
             except Exception as e:
@@ -874,7 +898,13 @@ class SpotifyManagement:
             
             organized_data[playlist_id] = playlist_tracks
             
-        return organized_data  
+        return organized_data 
+
+def main(): #! <--- This is a tester function but keep in mind that if there is no logged in user it will not work. 
+    fetch = SpotifyManagement()
+    fetch_songs =  fetch.fetch_user_songs()
+    return fetch_songs
+
 if __name__ == '__main__':
     
     # pm = PlaylistManager()
@@ -888,13 +918,6 @@ if __name__ == '__main__':
     # sm = SpotifyManagement()
     # result = sm.fetch_user_songs()
     # print(result)
-    
-    md = MongoDB()
-    result = md.get_token()
-    print(result)
-    
-    
-    
     # {
 #   Example_Format ---> {"Xavier Playlist": [
 #     {"name": "Lemonade", "artist": "Internet Money ft. Don Toliver & Gunna"},
