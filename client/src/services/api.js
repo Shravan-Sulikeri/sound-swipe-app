@@ -71,8 +71,6 @@ export const createPlaylist = async (playlistName) => {
 	}
 };
 
-// TO TEST
-
 export const deletePlaylist = async (playlistId, accessToken) => {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/delete-playlist`, {
@@ -97,6 +95,8 @@ export const deletePlaylist = async (playlistId, accessToken) => {
 	}
 };
 
+// TODO
+
 export async function getSongsFromPlaylist(playlistId) {
 	const response = await fetch(`${API_BASE_URL}/api/playlist/${playlistId}`);
 	const data = await response.json();
@@ -120,7 +120,7 @@ export const addTrack = async (trackId, playlistId) => {
 			: `spotify:track:${trackId}`;
 
 		// Call the backend API to add the track to the playlist
-		const response = await fetch("/api/add-track", {
+		const response = await fetch(`${API_BASE_URL}/api/add-track`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -208,5 +208,40 @@ export const removeTrack = async (trackId, playlistId) => {
 			success: false,
 			error: error.message || "Unknown error occurred",
 		};
+	}
+};
+// Add this to your api.js
+// Add this to your api.js
+export const searchSpotifyTrack = async (trackName, artistName) => {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/search-track`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			credentials: "include",
+			body: JSON.stringify({
+				track: trackName,
+				artist: artistName,
+			}),
+		});
+
+		if (!response.ok) {
+			const errorData = await response.json();
+			throw new Error(errorData.error || "Failed to search for track");
+		}
+
+		const data = await response.json();
+		return {
+			id: data.spotifyId,
+			uri: data.uri, // Store the full URI for adding to playlists
+			name: data.name,
+			artist: data.artist,
+			albumArt: data.albumArt,
+			success: !!data.spotifyId,
+		};
+	} catch (error) {
+		console.error("Error searching for track:", error);
+		return { success: false, error: error.message };
 	}
 };

@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import useAudioControls from "../hooks/useAudioControls";
-import Modal from "../components/common/Modal";
 import "../styling/home.css";
 import Sidebar from "../components/Sidebar";
 import MainContent from "../components/Main";
@@ -15,6 +14,7 @@ import {
 	deletePlaylist,
 	addTrack,
 	removeTrack,
+	searchSpotifyTrack,
 } from "../services/api";
 
 const Home = () => {
@@ -154,7 +154,42 @@ const Home = () => {
 		}
 	};
 
-	const handleDeleteSong = (playlistId, songIndex) => {
+	const handleDeleteSong = async (playlistId, songIndex) => {
+		// Find the song to remove
+		const playlist = playlists.find((p) => p.id === playlistId);
+		if (!playlist || !playlist.songs[songIndex]) return;
+
+		const songToRemove = playlist.songs[songIndex];
+
+		try {
+			// Extract artist name
+			const artistName = Array.isArray(songToRemove.artists)
+				? songToRemove.artists[0]
+				: songToRemove.artists;
+
+			// Search for track in Spotify
+			const spotifyId = await searchSpotifyTrack(songToRemove.name, artistName);
+
+			if (spotifyId) {
+				// Call API to remove the track
+				const result = await removeTrack(spotifyId, playlistId);
+				if (result.success) {
+					console.log(
+						`Track ${songToRemove.name} removed from playlist successfully`
+					);
+				} else {
+					console.error("Failed to remove track from playlist:", result.error);
+				}
+			} else {
+				console.warn(
+					`Could not find ${songToRemove.name} by ${artistName} on Spotify for removal`
+				);
+			}
+		} catch (error) {
+			console.error("Error removing track from playlist:", error);
+		}
+
+		// Update UI regardless of API success
 		setPlaylists((prevPlaylists) =>
 			prevPlaylists.map((playlist) => {
 				if (playlist.id === playlistId) {
@@ -196,15 +231,34 @@ const Home = () => {
 
 			// Add to active playlist if one is selected
 			if (activePlaylist) {
-				addTrack(currentSong.id, activePlaylist).then((response) => {
-					if (response.success) {
-						console.log(
-							`Track ${currentSong.name} added to playlist successfully.`
-						);
+				try {
+					const artistName = Array.isArray(currentSong.artists)
+						? currentSong.artists[0]
+						: currentSong.artists;
+
+					const spotifyId = await searchSpotifyTrack(
+						currentSong.name,
+						artistName
+					);
+
+					if (spotifyId) {
+						const result = await addTrack(spotifyId, activePlaylist);
+						if (result.success) {
+							console.log(
+								`Track ${currentSong.name} added to playlist successfully`
+							);
+						} else {
+							console.error("Failed to add track to playlist:", result.error);
+						}
 					} else {
-						console.log();
+						console.warn(
+							`Could not find ${currentSong.name} by ${artistName} on Spotify`
+						);
 					}
-				});
+				} catch (error) {
+					console.error("Error adding track to playlist:", error);
+				}
+
 				setPlaylists((prevPlaylists) =>
 					prevPlaylists.map((playlist) => {
 						if (playlist.id === activePlaylist) {

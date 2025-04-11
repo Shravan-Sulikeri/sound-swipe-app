@@ -577,6 +577,86 @@ def remove_tracks():
         return jsonify({"error": f"Failed to remove tracks from playlist: {str(e)}"}), 500
 
 
+@app.route('/api/search-track', methods=['POST'])
+def search_track():
+    try:
+        # Get access token or handle expired token
+        access_token, error_response, status_code = refresh_token_if_expired()
+        if error_response:
+            print(f"Authentication error: {error_response}")
+            return jsonify({"error": "Authentication required for search", "details": error_response}), status_code
+
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        # Extract track and artist information
+        track_name = data.get('track')
+        artist_name = data.get('artist')
+
+        if not track_name:
+            return jsonify({"error": "Track name is required"}), 400
+
+        # Create search query (artist is optional but improves accuracy)
+        query = f"track:{track_name}"
+        if artist_name:
+            query += f" artist:{artist_name}"
+
+        print(f"Searching Spotify for: {query}")
+
+        # Make the search request to Spotify API
+        response = requests.get(
+            "https://api.spotify.com/v1/search",
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            },
+            params={
+                "q": query,
+                "type": "track",
+                "limit": 1  # Get only the top result
+            }
+        )
+
+        # Check for errors
+        if response.status_code != 200:
+            print(
+                f"Spotify API error: {response.status_code} - {response.text}")
+            return jsonify({
+                "error": "Spotify API error",
+                "details": response.text
+            }), response.status_code
+
+        # Parse the response
+        result = response.json()
+
+        # Check if any tracks were found
+        if not result.get('tracks', {}).get('items'):
+            print(f"No tracks found for query: {query}")
+            return jsonify({"message": "No tracks found", "spotifyId": None}), 200
+
+        # Get the first (best match) track
+        track = result['tracks']['items'][0]
+        spotify_id = track['id']
+        track_uri = track['uri']
+
+        print(
+            f"Found track: {track['name']} by {track['artists'][0]['name'] if track['artists'] else 'Unknown'}")
+
+        # Return the Spotify track ID and URI
+        return jsonify({
+            "spotifyId": spotify_id,
+            "uri": track_uri,  # Add the URI which is needed for adding to playlists
+            "name": track['name'],
+            "artist": track['artists'][0]['name'] if track['artists'] else None,
+            "albumArt": track['album']['images'][0]['url'] if track['album']['images'] else None
+        }), 200
+
+    except Exception as e:
+        print(f"Error in search-track endpoint: {str(e)}")
+        return jsonify({"error": "Server error", "details": str(e)}), 500
+
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT'))
     print(f"Server starting on port {port}...")
