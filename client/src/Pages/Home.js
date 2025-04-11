@@ -9,6 +9,10 @@ import {
 	getRecommendations,
 	getSongsFromPlaylist,
 	API_BASE_URL,
+	createPlaylist,
+	deletePlaylist,
+	addTrack,
+	removeTrack,
 } from "../services/api";
 
 const Home = () => {
@@ -91,24 +95,50 @@ const Home = () => {
 		setNewPlaylistName("");
 	};
 
-	const handleCreatePlaylist = () => {
-		if (newPlaylistName.trim() === "") return;
+	const handleCreatePlaylist = async () => {
+		// Basic validation
+		if (!newPlaylistName.trim()) {
+			alert("Please enter a playlist name");
+			return;
+		}
 
-		const newPlaylist = {
-			id: Date.now().toString(),
-			name: newPlaylistName,
-			songs: [],
-			songCount: 0,
-			coverImage:
-				likedSongs.length > 0
-					? likedSongs[0].coverImage
-					: "https://via.placeholder.com/100",
-		};
+		try {
+			const playlistData = await createPlaylist(newPlaylistName);
 
-		setPlaylists([...playlists, newPlaylist]);
-		setActivePlaylist(newPlaylist.id);
-		setNewPlaylistName("");
-		setShowCreateModal(false);
+			if (!playlistData?.id) {
+				throw new Error("Failed to create playlist - no ID returned");
+			}
+
+			// Create the new playlist object
+			const newPlaylist = {
+				id: playlistData.id,
+				name: newPlaylistName,
+				songs: [],
+				songCount: 0,
+				coverImage:
+					likedSongs[0]?.coverImage || "https://via.placeholder.com/100",
+			};
+
+			// Update state
+			setPlaylists([...playlists, newPlaylist]);
+			setActivePlaylist(newPlaylist.id);
+			setNewPlaylistName("");
+			setShowCreateModal(false);
+
+			// Simple success feedback
+			console.log("Playlist created successfully:", newPlaylist);
+			alert(`Playlist "${newPlaylistName}" created successfully!`);
+		} catch (error) {
+			console.error("Playlist creation error:", error);
+
+			// Basic error feedback
+			let errorMessage = "Failed to create playlist";
+
+			alert(errorMessage);
+
+			// Reopen modal if error occurred
+			setShowCreateModal(true);
+		}
 	};
 
 	const handlePlaylistSelect = (playlistId) => {
@@ -121,7 +151,7 @@ const Home = () => {
 		}
 	};
 
-	const handleDeleteClick = (e, playlistId) => {
+	const handleDeleteClick = async (e, playlistId) => {
 		e.stopPropagation(); // Prevent playlist selection when clicking delete
 		setPlaylistToDelete(playlistId);
 		setShowDeleteModal(true);
@@ -148,18 +178,31 @@ const Home = () => {
 		);
 	};
 
-	const handleConfirmDelete = () => {
-		// If deleting the active playlist, clear the active state
-		if (playlistToDelete === activePlaylist) {
-			setActivePlaylist(null);
-		}
+	const handleConfirmDelete = async () => {
+		try {
+			// Make API call to delete from Spotify
+			await deletePlaylist(playlistToDelete);
 
-		// Remove the playlist
-		setPlaylists(
-			playlists.filter((playlist) => playlist.id !== playlistToDelete)
-		);
-		setShowDeleteModal(false);
-		setPlaylistToDelete(null);
+			// update UI
+			if (playlistToDelete === activePlaylist) {
+				setActivePlaylist(null);
+			}
+
+			setPlaylists((prev) =>
+				prev.filter((playlist) => playlist.id !== playlistToDelete)
+			);
+
+			// Close modal and reset
+			setShowDeleteModal(false);
+			setPlaylistToDelete(null);
+
+			console.log(`Playlist ${playlistToDelete} deleted successfully`);
+		} catch (error) {
+			console.error("Deletion failed:", error);
+
+			// Keep the modal open to show error
+			// setShowDeleteModal(true); // Uncomment if you want to keep modal open
+		}
 	};
 
 	const handleCancelDelete = () => {
