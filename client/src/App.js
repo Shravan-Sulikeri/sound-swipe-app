@@ -4,33 +4,8 @@ import Home from "./Pages/Home";
 import { API_BASE_URL } from "./services/api";
 
 function App() {
-	const [userData, setUserData] = useState(null); // KEEPING USER DATA INSTEAD OF TOKEN
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
-	// ALL TOKEN INFORMATION WILL BE HANDLED BY THE SERVER IF YOU NEED SOMETHING LET JONATHAN KNOW
 
-	// step 1: Check if user is authenticated
-	// SEE CHECKAUTH COMMAND
-
-	// Step 2: Fetch user data from the backend
-	const fetchUserData = async () => {
-		try {
-			const response = await fetch(`${API_BASE_URL}/api/me`, {
-				credentials: "include",
-			});
-			if (response.status === 401) {
-				// Session expired or doesnt exist
-				setIsAuthenticated(false);
-				window.location.href = `${API_BASE_URL}/login`; // Redirect to login
-			} else {
-				const data = await response.json();
-				setUserData(data);
-			}
-		} catch (error) {
-			console.error("Error fetching user data:", error);
-		}
-	};
-
-	// Step 2: Check if the user is already logged in (e.g., on page load)
 	useEffect(() => {
 		const checkAuth = async () => {
 			try {
@@ -40,7 +15,6 @@ function App() {
 				const data = await response.json();
 				if (data.authenticated) {
 					setIsAuthenticated(true);
-					fetchUserData(); // Fetch user data if authenticated
 				} else {
 					setIsAuthenticated(false);
 				}
