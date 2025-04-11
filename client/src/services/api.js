@@ -173,7 +173,7 @@ export const removeTrack = async (trackId, playlistId) => {
 			: `spotify:track:${trackId}`;
 
 		// Call the backend API to remove the track from the playlist
-		const response = await fetch("/api/remove-track", {
+		const response = await fetch(`${API_BASE_URL}/api/remove-track`, {
 			method: "DELETE",
 			headers: {
 				"Content-Type": "application/json",

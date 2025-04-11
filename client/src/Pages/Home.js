@@ -168,11 +168,14 @@ const Home = () => {
 				: songToRemove.artists;
 
 			// Search for track in Spotify
-			const spotifyId = await searchSpotifyTrack(songToRemove.name, artistName);
+			const searchResult = await searchSpotifyTrack(
+				songToRemove.name,
+				artistName
+			);
 
-			if (spotifyId) {
-				// Call API to remove the track
-				const result = await removeTrack(spotifyId, playlistId);
+			if (searchResult.success) {
+				// Call API to remove the track using the URI
+				const result = await removeTrack(searchResult.uri, playlistId);
 				if (result.success) {
 					console.log(
 						`Track ${songToRemove.name} removed from playlist successfully`
@@ -232,17 +235,23 @@ const Home = () => {
 			// Add to active playlist if one is selected
 			if (activePlaylist) {
 				try {
+					// Extract artist name - assuming artists is a string or array
 					const artistName = Array.isArray(currentSong.artists)
 						? currentSong.artists[0]
 						: currentSong.artists;
 
-					const spotifyId = await searchSpotifyTrack(
+					// Search for track in Spotify
+					const searchResult = await searchSpotifyTrack(
 						currentSong.name,
 						artistName
 					);
 
-					if (spotifyId) {
-						const result = await addTrack(spotifyId, activePlaylist);
+					if (searchResult.success) {
+						// Use the track URI for adding to playlist
+						const trackUri = searchResult.uri;
+
+						// Call the API to add the track to the playlist
+						const result = await addTrack(trackUri, activePlaylist);
 						if (result.success) {
 							console.log(
 								`Track ${currentSong.name} added to playlist successfully`
@@ -259,6 +268,7 @@ const Home = () => {
 					console.error("Error adding track to playlist:", error);
 				}
 
+				// Update the UI regardless of API success
 				setPlaylists((prevPlaylists) =>
 					prevPlaylists.map((playlist) => {
 						if (playlist.id === activePlaylist) {
@@ -267,7 +277,6 @@ const Home = () => {
 								...playlist,
 								songs: updatedSongs,
 								songCount: updatedSongs.length,
-								// Update cover image to the first song's image if this is the first song
 								coverImage:
 									playlist.songs.length === 0
 										? currentSong.coverImage
@@ -279,8 +288,6 @@ const Home = () => {
 				);
 			}
 		}
-
-		// Reset audio
 		controlAudio("stop");
 
 		// Get next song from queue
