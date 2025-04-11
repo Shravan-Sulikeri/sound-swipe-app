@@ -4,6 +4,7 @@ import Modal from "../components/common/Modal";
 import "../styling/home.css";
 import Sidebar from "../components/Sidebar";
 import MainContent from "../components/Main";
+import CreatePlaylistModal from "../components/CreateModal";
 import {
 	getSampleTracks,
 	getRecommendations,
@@ -29,7 +30,6 @@ const Home = () => {
 
 	// Modal states
 	const [showCreateModal, setShowCreateModal] = useState(false);
-	const [newPlaylistName, setNewPlaylistName] = useState("");
 	const [activePlaylist, setActivePlaylist] = useState(null);
 
 	// Delete confirmation modal
@@ -38,7 +38,6 @@ const Home = () => {
 
 	const audioRef = useRef(null);
 	const cardRef = useRef(null);
-	const createModalRef = useRef(null);
 	const deleteModalRef = useRef(null);
 
 	// audio controls
@@ -86,24 +85,9 @@ const Home = () => {
 		window.location.href = `${API_BASE_URL}/logout`;
 	};
 
-	const handleOpenCreateModal = () => {
-		setShowCreateModal(true);
-	};
-
-	const handleCloseCreateModal = () => {
-		setShowCreateModal(false);
-		setNewPlaylistName("");
-	};
-
-	const handleCreatePlaylist = async () => {
-		// Basic validation
-		if (!newPlaylistName.trim()) {
-			alert("Please enter a playlist name");
-			return;
-		}
-
+	const handleCreatePlaylist = async (playlistName) => {
 		try {
-			const playlistData = await createPlaylist(newPlaylistName);
+			const playlistData = await createPlaylist(playlistName);
 
 			if (!playlistData?.id) {
 				throw new Error("Failed to create playlist - no ID returned");
@@ -112,7 +96,7 @@ const Home = () => {
 			// Create the new playlist object
 			const newPlaylist = {
 				id: playlistData.id,
-				name: newPlaylistName,
+				name: playlistName,
 				songs: [],
 				songCount: 0,
 				coverImage:
@@ -122,12 +106,10 @@ const Home = () => {
 			// Update state
 			setPlaylists([...playlists, newPlaylist]);
 			setActivePlaylist(newPlaylist.id);
-			setNewPlaylistName("");
 			setShowCreateModal(false);
 
 			// Simple success feedback
 			console.log("Playlist created successfully:", newPlaylist);
-			alert(`Playlist "${newPlaylistName}" created successfully!`);
 		} catch (error) {
 			console.error("Playlist creation error:", error);
 
@@ -146,7 +128,9 @@ const Home = () => {
 			setActivePlaylist(null);
 		} else {
 			setActivePlaylist(playlistId);
+			// find playlist
 			const selected = playlists.find((p) => p.id === playlistId);
+			//get songs from playlist and set playlist songs
 			setPlaylistSongs(selected?.songs || []);
 		}
 	};
@@ -155,27 +139,6 @@ const Home = () => {
 		e.stopPropagation(); // Prevent playlist selection when clicking delete
 		setPlaylistToDelete(playlistId);
 		setShowDeleteModal(true);
-	};
-
-	const handleDeleteSong = (playlistId, songIndex) => {
-		setPlaylists((prevPlaylists) =>
-			prevPlaylists.map((playlist) => {
-				if (playlist.id === playlistId) {
-					const updatedSongs = [...playlist.songs];
-					updatedSongs.splice(songIndex, 1);
-					return {
-						...playlist,
-						songs: updatedSongs,
-						songCount: updatedSongs.length,
-						coverImage:
-							updatedSongs.length > 0
-								? updatedSongs[0].coverImage
-								: "https://via.placeholder.com/100",
-					};
-				}
-				return playlist;
-			})
-		);
 	};
 
 	const handleConfirmDelete = async () => {
@@ -210,8 +173,25 @@ const Home = () => {
 		setPlaylistToDelete(null);
 	};
 
-	const handleStartSwiping = () => {
-		setIsSwiping(true);
+	const handleDeleteSong = (playlistId, songIndex) => {
+		setPlaylists((prevPlaylists) =>
+			prevPlaylists.map((playlist) => {
+				if (playlist.id === playlistId) {
+					const updatedSongs = [...playlist.songs];
+					updatedSongs.splice(songIndex, 1);
+					return {
+						...playlist,
+						songs: updatedSongs,
+						songCount: updatedSongs.length,
+						coverImage:
+							updatedSongs.length > 0
+								? updatedSongs[0].coverImage
+								: "https://via.placeholder.com/100",
+					};
+				}
+				return playlist;
+			})
+		);
 	};
 
 	const handleExitSwiping = () => {
@@ -228,13 +208,22 @@ const Home = () => {
 		if (!card || !currentSong) return;
 
 		card.classList.add(`swiped-${direction}`);
-
+		// Song is liked
 		if (direction === "right") {
 			// Add to liked songs
 			setLikedSongs((prev) => [...prev, currentSong]);
 
 			// Add to active playlist if one is selected
 			if (activePlaylist) {
+				addTrack(currentSong.id, activePlaylist).then((response) => {
+					if (response.success) {
+						console.log(
+							`Track ${currentSong.name} added to playlist successfully.`
+						);
+					} else {
+						console.log();
+					}
+				});
 				setPlaylists((prevPlaylists) =>
 					prevPlaylists.map((playlist) => {
 						if (playlist.id === activePlaylist) {
@@ -382,7 +371,7 @@ const Home = () => {
 				activePlaylist={activePlaylist}
 				handlePlaylistSelect={handlePlaylistSelect}
 				handleDeleteClick={handleDeleteClick}
-				handleOpenCreateModal={handleOpenCreateModal}
+				openCreateModal={() => setShowCreateModal(true)}
 				handleDeleteSong={handleDeleteSong}
 			/>
 
@@ -399,7 +388,7 @@ const Home = () => {
 				currentTime={currentTime}
 				duration={duration}
 				isPlaying={isPlaying}
-				handleStartSwiping={handleStartSwiping}
+				handleStartSwiping={() => setIsSwiping(true)}
 				handleDragStart={handleDragStart}
 				handleDragMove={handleDragMove}
 				handleDragEnd={handleDragEnd}
@@ -422,39 +411,11 @@ const Home = () => {
 
 			{/* Playlist Creation Modal */}
 			{showCreateModal && (
-				<Modal
-					isOpen={createModalRef}
-					onClose={handleCloseCreateModal}
-					className="playlist-modal"
-					header="Create New Playlist"
-				>
-					<div className="modal-content">
-						<p>
-							Give your playlist a name. Songs you swipe right on will be added
-							to this playlist.
-						</p>
-						<input
-							type="text"
-							className="playlist-name-input"
-							placeholder="e.g Workout Playlist"
-							value={newPlaylistName}
-							onChange={(e) => setNewPlaylistName(e.target.value)}
-							autoFocus
-						/>
-					</div>
-					<div className="modal-footer">
-						<button className="cancel-btn" onClick={handleCloseCreateModal}>
-							Cancel
-						</button>
-						<button
-							className="create-btn"
-							onClick={handleCreatePlaylist}
-							disabled={newPlaylistName.trim() === ""}
-						>
-							Create Playlist
-						</button>
-					</div>
-				</Modal>
+				<CreatePlaylistModal
+					isOpen={showCreateModal}
+					onClose={() => setShowCreateModal(false)}
+					onCreate={handleCreatePlaylist}
+				/>
 			)}
 
 			{/* Delete Confirmation Modal */}

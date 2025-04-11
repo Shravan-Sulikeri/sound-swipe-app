@@ -1,5 +1,5 @@
 import React from "react";
-import {IoIosClose} from "react-icons/io";
+import { IoIosClose } from "react-icons/io";
 
 const Sidebar = ({
 	isSidebarCollapsed,
@@ -7,14 +7,14 @@ const Sidebar = ({
 	activePlaylist,
 	handlePlaylistSelect,
 	handleDeleteClick,
-	handleOpenCreateModal,
+	openCreateModal,
 	handleDeleteSong,
 }) => {
 	return (
 		<aside className={`sidebar ${isSidebarCollapsed ? "collapsed" : ""}`}>
 			<div className="sidebar-header">
 				<h2 className="playlist-text">Your Playlists</h2>
-				<button onClick={handleOpenCreateModal} className="add-playlist-btn">
+				<button onClick={openCreateModal} className="add-playlist-btn">
 					+
 				</button>
 			</div>
