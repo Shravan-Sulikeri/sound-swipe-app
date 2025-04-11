@@ -5,6 +5,7 @@ import "../styling/home.css";
 import Sidebar from "../components/Sidebar";
 import MainContent from "../components/Main";
 import CreatePlaylistModal from "../components/CreateModal";
+import DeletePlaylistModal from "../components/DeleteModal";
 import {
 	getSampleTracks,
 	getRecommendations,
@@ -33,12 +34,10 @@ const Home = () => {
 	const [activePlaylist, setActivePlaylist] = useState(null);
 
 	// Delete confirmation modal
-	const [showDeleteModal, setShowDeleteModal] = useState(false);
 	const [playlistToDelete, setPlaylistToDelete] = useState(null);
 
 	const audioRef = useRef(null);
 	const cardRef = useRef(null);
-	const deleteModalRef = useRef(null);
 
 	// audio controls
 	const {
@@ -138,39 +137,21 @@ const Home = () => {
 	const handleDeleteClick = async (e, playlistId) => {
 		e.stopPropagation(); // Prevent playlist selection when clicking delete
 		setPlaylistToDelete(playlistId);
-		setShowDeleteModal(true);
 	};
 
-	const handleConfirmDelete = async () => {
+	const handleDeletePlaylist = async (playlistId) => {
 		try {
-			// Make API call to delete from Spotify
-			await deletePlaylist(playlistToDelete);
+			await deletePlaylist(playlistId);
 
-			// update UI
-			if (playlistToDelete === activePlaylist) {
+			// Update UI state
+			setPlaylists((prev) => prev.filter((p) => p.id !== playlistId));
+			if (activePlaylist === playlistId) {
 				setActivePlaylist(null);
 			}
-
-			setPlaylists((prev) =>
-				prev.filter((playlist) => playlist.id !== playlistToDelete)
-			);
-
-			// Close modal and reset
-			setShowDeleteModal(false);
-			setPlaylistToDelete(null);
-
 			console.log(`Playlist ${playlistToDelete} deleted successfully`);
 		} catch (error) {
 			console.error("Deletion failed:", error);
-
-			// Keep the modal open to show error
-			// setShowDeleteModal(true); // Uncomment if you want to keep modal open
 		}
-	};
-
-	const handleCancelDelete = () => {
-		setShowDeleteModal(false);
-		setPlaylistToDelete(null);
 	};
 
 	const handleDeleteSong = (playlistId, songIndex) => {
@@ -419,33 +400,14 @@ const Home = () => {
 			)}
 
 			{/* Delete Confirmation Modal */}
-			{showDeleteModal && (
-				<Modal
-					isOpen={deleteModalRef}
-					onClose={handleCancelDelete}
-					className="delete-modal"
-					header="Delete Playlist"
-				>
-					<div className="modal-content">
-						<p>
-							Are you sure you want to delete
-							<strong>
-								{" "}
-								{playlists.find((p) => p.id === playlistToDelete)?.name}
-							</strong>
-							? This cannot be undone.
-						</p>
-					</div>
-					<div className="modal-footer">
-						<button className="cancel-btn" onClick={handleCancelDelete}>
-							Cancel
-						</button>
-						<button className="delete-btn" onClick={handleConfirmDelete}>
-							Delete Playlist
-						</button>
-					</div>
-				</Modal>
-			)}
+			<DeletePlaylistModal
+				isOpen={!!playlistToDelete}
+				onClose={() => setPlaylistToDelete(null)}
+				onDelete={() => handleDeletePlaylist(playlistToDelete)}
+				playlistName={
+					playlists.find((p) => p.id === playlistToDelete)?.name || ""
+				}
+			/>
 
 			<audio
 				ref={audioRef}
