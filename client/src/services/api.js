@@ -1,5 +1,6 @@
 export const API_BASE_URL = "http://localhost:3001";
 
+// recommendation model
 export const getSampleTracks = async (count = 20) => {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/recommendations`, {
@@ -42,6 +43,41 @@ export const getRecommendations = async (likedSongIds, count = 20) => {
 		throw error;
 	}
 };
+
+// playlists
+export async function getPlaylists() {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/playlists`, {
+			credentials: "include",
+		});
+
+		if (!response.ok) {
+			let errorMsg = "Failed to retrieve playlists";
+			try {
+				const errorData = await response.json();
+				errorMsg = errorData.error || errorMsg;
+			} catch (e) {
+				// If JSON parsing fails, use status text
+				errorMsg = response.statusText || errorMsg;
+			}
+			throw new Error(errorMsg);
+		}
+
+		const playlists = await response.json();
+
+		return playlists.map((playlist) => ({
+			id: playlist.id,
+			name: playlist.name,
+			songs: playlist.tracks?.href || [], // Fallback for missing tracks
+			songCount: playlist.tracks?.total || 0,
+			coverImage:
+				playlist.images?.[0]?.url || "https://via.placeholder.com/100",
+		}));
+	} catch (error) {
+		console.error("Error getting playlists:", error);
+		return [];
+	}
+}
 
 export const createPlaylist = async (playlistName) => {
 	try {
@@ -95,6 +131,7 @@ export const deletePlaylist = async (playlistId, accessToken) => {
 	}
 };
 
+//tracks
 export const addTrack = async (trackId, playlistId) => {
 	try {
 		// Make sure we have a trackId and playlistId
@@ -236,40 +273,6 @@ export const searchSpotifyTrack = async (trackName, artistName) => {
 		return { success: false, error: error.message };
 	}
 };
-
-export async function getPlaylists() {
-	try {
-		const response = await fetch(`${API_BASE_URL}/api/playlists`, {
-			credentials: "include",
-		});
-
-		if (!response.ok) {
-			let errorMsg = "Failed to retrieve playlists";
-			try {
-				const errorData = await response.json();
-				errorMsg = errorData.error || errorMsg;
-			} catch (e) {
-				// If JSON parsing fails, use status text
-				errorMsg = response.statusText || errorMsg;
-			}
-			throw new Error(errorMsg);
-		}
-
-		const playlists = await response.json();
-
-		return playlists.map((playlist) => ({
-			id: playlist.id,
-			name: playlist.name,
-			songs: playlist.tracks?.href || [], // Fallback for missing tracks
-			songCount: playlist.tracks?.total || 0,
-			coverImage:
-				playlist.images?.[0]?.url || "https://via.placeholder.com/100",
-		}));
-	} catch (error) {
-		console.error("Error getting playlists:", error);
-		return [];
-	}
-}
 
 // TODO
 export async function getSongsFromPlaylist(playlistId) {
