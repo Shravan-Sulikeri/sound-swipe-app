@@ -10,6 +10,7 @@ import {
 	getRecommendations,
 	getSongsFromPlaylist,
 	API_BASE_URL,
+	getPlaylists,
 	createPlaylist,
 	deletePlaylist,
 	addTrack,
@@ -59,25 +60,50 @@ const Home = () => {
 		setPlaylistSongs(songs.data || []);
 	};
 
+	const loadPlaylists = async () => {
+		// First try to load from cache for instant display
+		const cached = localStorage.getItem("cachedPlaylists");
+		if (cached) {
+			setPlaylists(JSON.parse(cached));
+		}
+
+		// Then fetch fresh data in background
+		try {
+			const fresh = await getPlaylists();
+			setPlaylists(fresh);
+			localStorage.setItem("cachedPlaylists", JSON.stringify(fresh));
+		} catch (error) {
+			console.error("Playlist refresh failed:", error);
+		}
+	};
+
 	// Initialize songs when component mounts
 	useEffect(() => {
-		const initializeSongs = async () => {
+		const initializeData = async () => {
 			setIsLoading(true);
 			try {
-				const initialSongs = await getSampleTracks(20);
-				if (initialSongs && initialSongs.length > 0) {
-					setCurrentSong(initialSongs[0]);
-					setSongQueue(initialSongs.slice(1));
-				} else {
-					console.error("No songs received from the API");
-				}
+				await Promise.all([
+					getSampleTracks(20)
+						.then((songs) => {
+							if (songs?.length > 0) {
+								setCurrentSong(songs[0]);
+								setSongQueue(songs.slice(1));
+							} else {
+								console.error("No songs received from the API");
+							}
+						})
+						.catch((error) =>
+							console.error("Error loading initial songs:", error)
+						),
+					loadPlaylists(), // Handles both cache and fresh data
+				]);
 			} catch (error) {
-				console.error("Error loading initial songs:", error);
+				console.error("Error loading data:", error);
 			} finally {
 				setIsLoading(false);
 			}
 		};
-		initializeSongs();
+		initializeData();
 	}, []);
 
 	const handleLogout = () => {
@@ -157,7 +183,7 @@ const Home = () => {
 	const handleDeleteSong = async (playlistId, songIndex) => {
 		// Find the song to remove
 		const playlist = playlists.find((p) => p.id === playlistId);
-		if (!playlist || !playlist.songs[songIndex]) return;
+		if (!playlist?.songs?.[songIndex]) return;
 
 		const songToRemove = playlist.songs[songIndex];
 
@@ -415,6 +441,7 @@ const Home = () => {
 				handleDeleteClick={handleDeleteClick}
 				openCreateModal={() => setShowCreateModal(true)}
 				handleDeleteSong={handleDeleteSong}
+				onRefresh={loadPlaylists}
 			/>
 
 			{/* Main content */}

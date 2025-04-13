@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { IoIosClose } from "react-icons/io";
+import { FaSyncAlt } from "react-icons/fa";
 
 const Sidebar = ({
 	isSidebarCollapsed,
@@ -9,17 +10,49 @@ const Sidebar = ({
 	handleDeleteClick,
 	openCreateModal,
 	handleDeleteSong,
+	onRefresh,
 }) => {
+	const [isRefreshing, setIsRefreshing] = useState(false);
+
+	const handleRefresh = async () => {
+		if (isRefreshing) return;
+		setIsRefreshing(true);
+		try {
+			await onRefresh(); // Calls the refresh handler from Home
+		} finally {
+			setIsRefreshing(false);
+		}
+	};
+
 	return (
 		<aside className={`sidebar ${isSidebarCollapsed ? "collapsed" : ""}`}>
 			<div className="sidebar-header">
 				<h2 className="playlist-text">Your Playlists</h2>
-				<button onClick={openCreateModal} className="add-playlist-btn">
-					+
-				</button>
+				<div className="sidebar-actions">
+					<button
+						onClick={handleRefresh}
+						className="refresh-btn"
+						disabled={isRefreshing}
+						title="Refresh playlists"
+					>
+						<FaSyncAlt className={isRefreshing ? "spinning" : ""} />
+					</button>
+					<button onClick={openCreateModal} className="add-playlist-btn">
+						+
+					</button>
+				</div>
 			</div>
 			<div className="playlist-list">
-				{playlists.length === 0 ? (
+				{isRefreshing && playlists.length === 0 ? (
+					<div className="loading-state">
+						<div className="spinner"></div>
+						<p
+							style={{ color: "rgba(255, 255, 255, 0.6)", textAlign: "center" }}
+						>
+							Loading playlists...
+						</p>
+					</div>
+				) : playlists.length === 0 ? (
 					<p style={{ color: "rgba(255, 255, 255, 0.6)", textAlign: "center" }}>
 						No playlists yet. Create one to get started!
 					</p>

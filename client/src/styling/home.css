@@ -1,552 +1,692 @@
 .home-container {
-  min-height: 100vh;
-  background: #121212;
-  color: white;
-  padding: 0;
-  position: relative;
-  overflow: hidden;
-  display: flex;
+	min-height: 100vh;
+	background: #121212;
+	color: white;
+	padding: 0;
+	position: relative;
+	overflow: hidden;
+	display: flex;
 }
 
 /* Floating background elements */
 .floating-songs {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 0;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 0;
 }
 
 .floating-song {
-  position: absolute;
-  width: 200px;
-  height: 200px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.5s ease;
-  animation: float 20s infinite linear;
+	position: absolute;
+	width: 200px;
+	height: 200px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 15px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.5s ease;
+	animation: float 20s infinite linear;
 }
 
-.floating-song:nth-child(1) { top: 10%; left: 5%; animation-delay: 0s; }
-.floating-song:nth-child(2) { top: 20%; right: 10%; animation-delay: -5s; }
-.floating-song:nth-child(3) { bottom: 15%; left: 15%; animation-delay: -10s; }
-.floating-song:nth-child(4) { bottom: 25%; right: 20%; animation-delay: -15s; }
+.floating-song:nth-child(1) {
+	top: 10%;
+	left: 5%;
+	animation-delay: 0s;
+}
+.floating-song:nth-child(2) {
+	top: 20%;
+	right: 10%;
+	animation-delay: -5s;
+}
+.floating-song:nth-child(3) {
+	bottom: 15%;
+	left: 15%;
+	animation-delay: -10s;
+}
+.floating-song:nth-child(4) {
+	bottom: 25%;
+	right: 20%;
+	animation-delay: -15s;
+}
 
 .floating-song::before {
-  content: '';
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  background: rgba(30, 215, 96, 0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
+	content: "";
+	position: absolute;
+	width: 60px;
+	height: 60px;
+	background: rgba(30, 215, 96, 0.2);
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.3s ease;
 }
 
 .floating-song::after {
-  content: '▶';
-  position: absolute;
-  color: rgba(30, 215, 96, 0.8);
-  font-size: 24px;
-  transition: all 0.3s ease;
+	content: "▶";
+	position: absolute;
+	color: rgba(30, 215, 96, 0.8);
+	font-size: 24px;
+	transition: all 0.3s ease;
 }
 
 .floating-song:hover::before {
-  transform: scale(1.2);
-  background: rgba(30, 215, 96, 0.4);
+	transform: scale(1.2);
+	background: rgba(30, 215, 96, 0.4);
 }
 
 .floating-song:hover::after {
-  transform: scale(1.2);
-  color: rgba(30, 215, 96, 1);
+	transform: scale(1.2);
+	color: rgba(30, 215, 96, 1);
 }
 
 @keyframes float {
-  0% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-20px) rotate(5deg);
-  }
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
+	0% {
+		transform: translateY(0) rotate(0deg);
+	}
+	50% {
+		transform: translateY(-20px) rotate(5deg);
+	}
+	100% {
+		transform: translateY(0) rotate(0deg);
+	}
 }
 
 .navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  background: rgba(18, 18, 18, 0.8);
-  backdrop-filter: blur(10px);
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 1rem 2rem;
+	background: rgba(18, 18, 18, 0.8);
+	backdrop-filter: blur(10px);
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 1000;
 }
 
 .logo-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
 }
 
 .logo-container img {
-  height: 40px;
-  width: auto;
-  transition: transform 0.3s ease;
+	height: 40px;
+	width: auto;
+	transition: transform 0.3s ease;
 }
 
 .logo-container img:hover {
-  transform: scale(1.05);
+	transform: scale(1.05);
 }
 
 .logout-button {
-  background: rgba(255, 70, 110, 0.9);
-  color: white;
-  border: none;
-  border-radius: 50px;
-  padding: 10px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
+	background: rgba(255, 70, 110, 0.9);
+	color: white;
+	border: none;
+	border-radius: 50px;
+	padding: 10px 24px;
+	font-size: 16px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.3s ease;
 }
 
 .logout-button:hover {
-  background: rgba(255, 70, 110, 1);
-  transform: translateY(-2px);
+	background: rgba(255, 70, 110, 1);
+	transform: translateY(-2px);
 }
 
 /* Sidebar styles */
 .sidebar {
-  width: 300px;
-  background: rgba(18, 18, 18, 0.95);
-  backdrop-filter: blur(10px);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 20px;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 900;
-  overflow-y: auto;
-  transition: transform 0.3s ease;
+	width: 300px;
+	background: rgba(18, 18, 18, 0.95);
+	backdrop-filter: blur(10px);
+	border-right: 1px solid rgba(255, 255, 255, 0.1);
+	padding: 20px;
+	position: fixed;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	z-index: 900;
+	overflow-y: auto;
+	transition: transform 0.3s ease;
 }
 
 .sidebar.collapsed {
-  display: none;
+	display: none;
 }
 
 .sidebar-toggle {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 1000;
-  background: rgba(30, 215, 96, 0.2);
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: rgba(30, 215, 96, 0.8);
-  font-size: 20px;
+	position: fixed;
+	top: 20px;
+	left: 20px;
+	z-index: 1000;
+	background: rgba(30, 215, 96, 0.2);
+	border: none;
+	border-radius: 50%;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	color: rgba(30, 215, 96, 0.8);
+	font-size: 20px;
 }
 
 .sidebar-toggle:hover {
-  background: rgba(30, 215, 96, 0.4);
-  transform: scale(1.1);
+	background: rgba(30, 215, 96, 0.4);
+	transform: scale(1.1);
 }
 
 .sidebar-toggle.collapsed {
-  top: 20px;
-  left: 10px;
+	top: 20px;
+	left: 10px;
 }
 
 .sidebar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  margin-top: 40px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 30px;
+	padding-bottom: 20px;
+	margin-top: 40px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-header h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  background: linear-gradient(45deg, rgba(30, 215, 96, 1) 30%, rgba(220, 220, 220, 1) 70%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+	font-size: 1.5rem;
+	font-weight: 600;
+	background: linear-gradient(
+		45deg,
+		rgba(30, 215, 96, 1) 30%,
+		rgba(220, 220, 220, 1) 70%
+	);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+
+.sidebar-actions {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+}
+
+.refresh-btn {
+	background: rgba(255, 255, 255, 0.05);
+	border: none;
+	border-radius: 50%;
+	width: 36px;
+	height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	color: rgba(255, 255, 255, 0.8);
+}
+
+.refresh-btn:hover {
+	background: rgba(30, 215, 96, 0.2);
+	color: #1db954;
+	transform: rotate(30deg) scale(1.1);
+}
+
+.refresh-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	transform: none !important;
+}
+
+.spinning {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+/* ===== Enhanced Loading States ===== */
+.loading-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 40px 20px;
+}
+
+.loading-spinner {
+	width: 40px;
+	height: 40px;
+	border: 3px solid rgba(255, 255, 255, 0.1);
+	border-top-color: #1db954;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+	margin-bottom: 16px;
+}
+
+/* ===== Playlist Items ===== */
+.playlist-item {
+	position: relative;
+	transition: transform 0.2s ease;
+}
+
+.playlist-item:hover .delete-playlist-btn {
+	opacity: 1;
+	transform: translateY(-50%) scale(1);
+}
+
+.delete-playlist-btn {
+	position: absolute;
+	right: 15px;
+	top: 50%;
+	transform: translateY(-50%) scale(0.8);
+	opacity: 0;
+	transition: all 0.3s ease;
+	background: rgba(255, 70, 110, 0.2);
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.delete-playlist-btn:hover {
+	background: rgba(255, 70, 110, 0.4);
+}
+
+/* ===== Playlist Songs ===== */
+.playlist-songs {
+	max-height: 0;
+	overflow: hidden;
+	transition: max-height 0.3s ease, margin-top 0.3s ease;
+}
+
+.playlist-item.active .playlist-songs {
+	max-height: 500px;
+	margin-top: 10px;
+}
+
+.playlist-song-item {
+	padding: 8px 12px;
+	margin-left: 62px; /* Align with playlist cover */
+}
+
+/* ===== Empty State ===== */
+.empty-state {
+	text-align: center;
+	padding: 30px 20px;
+	color: rgba(255, 255, 255, 0.6);
+	font-size: 0.9rem;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.03);
+	margin: 20px;
 }
 
 .add-playlist-btn {
-  background: rgba(30, 215, 96, 0.2);
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 24px;
-  color: rgba(30, 215, 96, 0.8);
+	background: rgba(30, 215, 96, 0.2);
+	border: none;
+	border-radius: 50%;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	font-size: 24px;
+	color: rgba(30, 215, 96, 0.8);
 }
 
 .add-playlist-btn:hover {
-  background: rgba(30, 215, 96, 0.4);
-  transform: scale(1.1);
+	background: rgba(30, 215, 96, 0.4);
+	transform: scale(1.1);
 }
 
 .playlist-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
 }
 
 .playlist-item {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-  padding: 15px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 15px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 10px;
+	padding: 15px;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	display: flex;
+	align-items: center;
+	gap: 15px;
 }
 
 .playlist-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateX(5px);
+	background: rgba(255, 255, 255, 0.1);
+	transform: translateX(5px);
 }
 
 .playlist-item img {
-  width: 50px;
-  height: 50px;
-  border-radius: 8px;
-  object-fit: cover;
+	width: 50px;
+	height: 50px;
+	border-radius: 8px;
+	object-fit: cover;
 }
 
 .playlist-info {
-  flex: 1;
+	flex: 1;
 }
 
 .playlist-name {
-  font-weight: 500;
-  margin-bottom: 5px;
+	font-weight: 500;
+	margin-bottom: 5px;
 }
 
 .playlist-song-count {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.6);
+	font-size: 0.9rem;
+	color: rgba(255, 255, 255, 0.6);
 }
 
 .song-card {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 0;
-  margin: 20px auto;
-  max-width: 400px;
-  cursor: grab;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  position: relative;
-  overflow: hidden;
-  transform-style: preserve-3d;
-  will-change: transform;
-  height: 600px;
-  display: flex;
-  flex-direction: column;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 20px;
+	padding: 0;
+	margin: 20px auto;
+	max-width: 400px;
+	cursor: grab;
+	transition: all 0.3s ease;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+	position: relative;
+	overflow: hidden;
+	transform-style: preserve-3d;
+	will-change: transform;
+	height: 600px;
+	display: flex;
+	flex-direction: column;
 }
 
 .song-card.swiping {
-  transition: none;
+	transition: none;
 }
 
 .song-card.swiped-left {
-  transform: translateX(-150%) rotate(-30deg);
-  opacity: 0;
+	transform: translateX(-150%) rotate(-30deg);
+	opacity: 0;
 }
 
 .song-card.swiped-right {
-  transform: translateX(150%) rotate(30deg);
-  opacity: 0;
+	transform: translateX(150%) rotate(30deg);
+	opacity: 0;
 }
 
 .song-image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.7;
-  z-index: -1;
-  object-fit: cover;
-  object-position: center;
-  filter: blur(1px);
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0.7;
+	z-index: -1;
+	object-fit: cover;
+	object-position: center;
+	filter: blur(1px);
 }
 
 .song-info {
-  padding: 10px;
-  background: transparent;
-  border-radius: 0 0 20px 20px;
-  flex: 1;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+	padding: 10px;
+	background: transparent;
+	border-radius: 0 0 20px 20px;
+	flex: 1;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
 }
 
 .song-details {
-  text-align: center;
-  margin-bottom: 20px;
-  color: white;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+	text-align: center;
+	margin-bottom: 20px;
+	color: white;
+	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .song-title {
-  font-size: 24px;
-  margin-bottom: 8px;
-  font-weight: bold;
+	font-size: 24px;
+	margin-bottom: 8px;
+	font-weight: bold;
 }
 
 .artist-name {
-  font-size: 18px;
-  opacity: 0.9;
-  margin: 0;
+	font-size: 18px;
+	opacity: 0.9;
+	margin: 0;
 }
 
 .waveform-container,
 .waveform,
 .wave-bar {
-  display: none;
+	display: none;
 }
 
 .audio-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  padding: 10px;
-  margin-top: 300px;
-  position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 20px;
+	padding: 10px;
+	margin-top: 300px;
+	position: relative;
 }
 
 .progress-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  margin: 0 5px;
-  margin-top: 25px;
-  margin-right: 50px;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	margin: 0 5px;
+	margin-top: 25px;
+	margin-right: 50px;
 }
 
 .progress-bar {
-  width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-  cursor: pointer;
-  overflow: visible;
-  position: relative;
+	width: 100%;
+	height: 4px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 2px;
+	cursor: pointer;
+	overflow: visible;
+	position: relative;
 }
 
 .progress {
-  height: 100%;
-  background: #ff6347;
-  border-radius: 2px;
-  position: relative;
-  transition: width 0.1s linear;
+	height: 100%;
+	background: #ff6347;
+	border-radius: 2px;
+	position: relative;
+	transition: width 0.1s linear;
 }
 
 .progress::after {
-  content: '';
-  position: absolute;
-  right: -6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 12px;
-  height: 12px;
-  background: #ff6347;
-  border-radius: 50%;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+	content: "";
+	position: absolute;
+	right: -6px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 12px;
+	height: 12px;
+	background: #ff6347;
+	border-radius: 50%;
+	opacity: 0;
+	transition: opacity 0.2s ease;
 }
 
 .progress-bar:hover .progress::after {
-  opacity: 1;
+	opacity: 1;
 }
 
 .time-info {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
-  white-space: nowrap;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  margin-top: 5px;
+	font-size: 0.8rem;
+	color: rgba(255, 255, 255, 0.6);
+	white-space: nowrap;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+		Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+	margin-top: 5px;
 }
 
 .play-label {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
+	position: relative;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 40px;
+	height: 40px;
+	cursor: pointer;
 }
 
 .play-btn {
-  appearance: none;
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: conic-gradient(#ff6347, #ff6347);
-  cursor: pointer;
-  outline: none;
+	appearance: none;
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	background: conic-gradient(#ff6347, #ff6347);
+	cursor: pointer;
+	outline: none;
 }
 
 .play-btn::before {
-  content: "";
-  position: absolute;
-  width: 93%;
-  height: 93%;
-  background-color: #000;
-  border-radius: 50%;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+	content: "";
+	position: absolute;
+	width: 93%;
+	height: 93%;
+	background-color: #000;
+	border-radius: 50%;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
 }
 
 .play-btn:checked {
-  animation: borderAnimate 700ms ease-in-out 1 forwards;
+	animation: borderAnimate 700ms ease-in-out 1 forwards;
 }
 
 @keyframes borderAnimate {
-  0% {
-    transform: rotate(0);
-    background: conic-gradient(#ff6347, transparent 20%);
-  }
-  80% {
-    background: conic-gradient(#ff6347, transparent 90%);
-  }
-  100% {
-    transform: rotate(360deg);
-    background: conic-gradient(#ff6347, #ff6347);
-  }
+	0% {
+		transform: rotate(0);
+		background: conic-gradient(#ff6347, transparent 20%);
+	}
+	80% {
+		background: conic-gradient(#ff6347, transparent 90%);
+	}
+	100% {
+		transform: rotate(360deg);
+		background: conic-gradient(#ff6347, #ff6347);
+	}
 }
 
 .play-icon {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  left: 65%;
-  top: 50%;
-  background-color: #ff6347;
-  transform: translate(-60%, -50%) rotate(90deg);
-  clip-path: polygon(50% 15%, 0% 100%, 100% 100%);
-  transition: all 400ms ease-in-out;
-  cursor: pointer;
+	position: absolute;
+	width: 20px;
+	height: 20px;
+	left: 65%;
+	top: 50%;
+	background-color: #ff6347;
+	transform: translate(-60%, -50%) rotate(90deg);
+	clip-path: polygon(50% 15%, 0% 100%, 100% 100%);
+	transition: all 400ms ease-in-out;
+	cursor: pointer;
 }
 
 .play-btn:checked + .play-icon {
-  clip-path: polygon(0 100%, 0% 100%, 100% 100%);
+	clip-path: polygon(0 100%, 0% 100%, 100% 100%);
 }
 
 .pause-icon {
-  position: absolute;
-  width: 16px;
-  height: 20px;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  justify-content: space-between;
-  opacity: 1;
-  transition: opacity 300ms ease-in-out;
+	position: absolute;
+	width: 16px;
+	height: 20px;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	display: flex;
+	justify-content: space-between;
+	opacity: 1;
+	transition: opacity 300ms ease-in-out;
 }
 
 .pause-icon::before {
-  content: "";
-  position: absolute;
-  width: 0%;
-  height: 100%;
-  background-color: #ff6347;
-  left: 0;
+	content: "";
+	position: absolute;
+	width: 0%;
+	height: 100%;
+	background-color: #ff6347;
+	left: 0;
 }
 
 .pause-icon::after {
-  content: "";
-  position: absolute;
-  width: 0%;
-  height: 100%;
-  background-color: #ff6347;
-  right: 0;
+	content: "";
+	position: absolute;
+	width: 0%;
+	height: 100%;
+	background-color: #ff6347;
+	right: 0;
 }
 
 .play-btn:checked ~ .pause-icon::before {
-  animation: reveal 300ms ease-in-out 350ms 1;
-  animation-fill-mode: forwards;
+	animation: reveal 300ms ease-in-out 350ms 1;
+	animation-fill-mode: forwards;
 }
 
 .play-btn:checked ~ .pause-icon::after {
-  animation: reveal 300ms ease-in-out 600ms 1;
-  animation-fill-mode: forwards;
+	animation: reveal 300ms ease-in-out 600ms 1;
+	animation-fill-mode: forwards;
 }
 
 @keyframes reveal {
-  0% {
-    width: 0;
-  }
-  100% {
-    width: 35%;
-  }
+	0% {
+		width: 0;
+	}
+	100% {
+		width: 35%;
+	}
 }
 
 .swipe-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 40px;
-  margin-top: 20px;
-  padding: 0 20px 20px;
+	display: flex;
+	justify-content: center;
+	gap: 40px;
+	margin-top: 20px;
+	padding: 0 20px 20px;
 }
 
 .swipe-button {
-  background: rgba(255, 255, 255, 0.05);
-  border: none;
-  border-radius: 50%;
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 20px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
+	background: rgba(255, 255, 255, 0.05);
+	border: none;
+	border-radius: 50%;
+	width: 60px;
+	height: 60px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	font-size: 20px;
+	backdrop-filter: blur(10px);
+	box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+	position: relative;
+	overflow: hidden;
 }
 
 .swipe-button:disabled {
@@ -554,543 +694,570 @@
 }
 
 .swipe-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: radial-gradient(
+		circle at center,
+		rgba(255, 255, 255, 0.1) 0%,
+		transparent 70%
+	);
+	opacity: 0;
+	transition: opacity 0.3s ease;
 }
 
 .swipe-button:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+	transform: scale(1.1);
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
 .swipe-button:hover::before {
-  opacity: 1;
+	opacity: 1;
 }
 
 .swipe-button.dislike {
-  background: rgba(255, 70, 110, 0.1);
-  color: rgba(255, 70, 110, 0.8);
+	background: rgba(255, 70, 110, 0.1);
+	color: rgba(255, 70, 110, 0.8);
 }
 
 .swipe-button.dislike:hover {
-  background: rgba(255, 70, 110, 0.2);
-  color: rgba(255, 70, 110, 1);
+	background: rgba(255, 70, 110, 0.2);
+	color: rgba(255, 70, 110, 1);
 }
 
 .swipe-button.like {
-  background: rgba(30, 215, 96, 0.1);
-  color: rgba(30, 215, 96, 0.8);
+	background: rgba(30, 215, 96, 0.1);
+	color: rgba(30, 215, 96, 0.8);
 }
 
 .swipe-button.like:hover {
-  background: rgba(30, 215, 96, 0.2);
-  color: rgba(30, 215, 96, 1);
+	background: rgba(30, 215, 96, 0.2);
+	color: rgba(30, 215, 96, 1);
 }
 
 .swipe-button:active {
-  transform: scale(0.95);
+	transform: scale(0.95);
 }
 
 .exit-button {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: rgba(255, 70, 110, 0.2);
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: rgba(255, 70, 110, 0.8);
-  font-size: 20px;
-  z-index: 1000;
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	background: rgba(255, 70, 110, 0.2);
+	border: none;
+	border-radius: 50%;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	color: rgba(255, 70, 110, 0.8);
+	font-size: 20px;
+	z-index: 1000;
 }
 
-.logout-button{
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: rgba(255, 70, 110, 0.2);
-    border: none;
-    border-radius: 5%;
-    width: 90px;
-    height: 35px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    color: rgba(255, 70, 110, 0.8);
-    font-size: 15px;
-    z-index: 1000;
+.logout-button {
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	background: rgba(255, 70, 110, 0.2);
+	border: none;
+	border-radius: 5%;
+	width: 90px;
+	height: 35px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	color: rgba(255, 70, 110, 0.8);
+	font-size: 15px;
+	z-index: 1000;
 }
 
-.logout-button:hover{
-    background: rgba(255, 70, 110, 0.4);
-    transform: scale(1.1);
+.logout-button:hover {
+	background: rgba(255, 70, 110, 0.4);
+	transform: scale(1.1);
 }
 
 .exit-button:hover {
-  background: rgba(255, 70, 110, 0.4);
-  transform: scale(1.1);
+	background: rgba(255, 70, 110, 0.4);
+	transform: scale(1.1);
 }
 
 /* Main content adjustments */
 .main-content {
-  margin-left: 300px;
-  flex: 1;
-  max-width: calc(100% - 300px);
-  padding: 20px;
-  position: relative;
-  z-index: 1;
-  transition: margin-left 0.3s ease, max-width 0.3s ease;
+	margin-left: 300px;
+	flex: 1;
+	max-width: calc(100% - 300px);
+	padding: 20px;
+	position: relative;
+	z-index: 1;
+	transition: margin-left 0.3s ease, max-width 0.3s ease;
 }
 
 .main-content.expanded {
-  margin-left: 0;
-  max-width: 100%;
+	margin-left: 0;
+	max-width: 100%;
 }
 
 .welcome-section {
-  text-align: center;
-  animation: fadeIn 1s ease;
-  margin: 8%
+	text-align: center;
+	animation: fadeIn 1s ease;
+	margin: 8%;
 }
 
 .welcome-section.hidden {
-  display: none;
-  animation: fadeOut 0.5s ease;
+	display: none;
+	animation: fadeOut 0.5s ease;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 @keyframes fadeOut {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(20px); }
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(20px);
+	}
 }
 
 .welcome-section h1 {
-  font-size: 3.5rem;
-  background: linear-gradient(45deg, rgba(30, 215, 96, 1) 30%, rgba(220, 220, 220, 1) 70%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+	font-size: 3.5rem;
+	background: linear-gradient(
+		45deg,
+		rgba(30, 215, 96, 1) 30%,
+		rgba(220, 220, 220, 1) 70%
+	);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .welcome-section p {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 1.4rem;
-  margin: 0;
-  margin-bottom: 40px;
-  margin-top: -12%;
+	color: rgba(255, 255, 255, 0.8);
+	font-size: 1.4rem;
+	margin: 0;
+	margin-bottom: 40px;
+	margin-top: -12%;
 }
 
 .start-button {
-  background: rgba(30, 215, 96, 0.9);
-  color: white;
-  border: none;
-  border-radius: 50px;
-  padding: 16px 48px;
-  font-size: 1.2rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(30, 215, 96, 0.3);
-  margin-bottom: 40px;
+	background: rgba(30, 215, 96, 0.9);
+	color: white;
+	border: none;
+	border-radius: 50px;
+	padding: 16px 48px;
+	font-size: 1.2rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	box-shadow: 0 4px 15px rgba(30, 215, 96, 0.3);
+	margin-bottom: 40px;
 }
 
 .start-button:hover {
-  background: rgba(30, 215, 96, 1);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(30, 215, 96, 0.4);
+	background: rgba(30, 215, 96, 1);
+	transform: translateY(-2px);
+	box-shadow: 0 6px 20px rgba(30, 215, 96, 0.4);
 }
 
 .swipe-container {
-  border-radius: 20px;
-  padding: 30px;
-  margin-top: 40px;
-  text-align: center;
-  transform-origin: center;
-  transition: all 0.5s ease;
-  animation: fadeIn 1s ease;
+	border-radius: 20px;
+	padding: 30px;
+	margin-top: 40px;
+	text-align: center;
+	transform-origin: center;
+	transition: all 0.5s ease;
+	animation: fadeIn 1s ease;
 }
 
 .swipe-container.hidden {
-  display: none;
-  animation: fadeOut 0.5s ease;
+	display: none;
+	animation: fadeOut 0.5s ease;
 }
 
 @media (max-width: 768px) {
-  .navbar {
-    padding: 1rem;
-  }
-  
-  .welcome-section h1 {
-    font-size: 2.5rem;
-  }
-  
-  .welcome-section p {
-    font-size: 1.1rem;
-  }
-  
-  .swipe-container {
-    padding: 20px;
-  }
-  
-  .song-card {
-    height: 500px;
-  }
+	.navbar {
+		padding: 1rem;
+	}
 
-  .song-image {
-    height: 300px;
-  }
+	.welcome-section h1 {
+		font-size: 2.5rem;
+	}
 
-  .sidebar {
-    transform: translateX(-100%);
-  }
+	.welcome-section p {
+		font-size: 1.1rem;
+	}
 
-  .sidebar.open {
-    transform: translateX(0);
-  }
+	.swipe-container {
+		padding: 20px;
+	}
 
-  .main-content {
-    margin-left: 0;
-    max-width: 100%;
-  }
+	.song-card {
+		height: 500px;
+	}
 
-  .song-title {
-    font-size: 1.5rem;
-  }
+	.song-image {
+		height: 300px;
+	}
 
-  .swipe-button {
-    width: 60px;
-    height: 60px;
-    font-size: 20px;
-  }
+	.sidebar {
+		transform: translateX(-100%);
+	}
 
-  .sidebar-toggle {
-    display: none;
-  }
+	.sidebar.open {
+		transform: translateX(0);
+	}
+
+	.main-content {
+		margin-left: 0;
+		max-width: 100%;
+	}
+
+	.song-title {
+		font-size: 1.5rem;
+	}
+
+	.swipe-button {
+		width: 60px;
+		height: 60px;
+		font-size: 20px;
+	}
+
+	.sidebar-toggle {
+		display: none;
+	}
 }
 
 @keyframes wave {
-  0% {
-    height: 20%;
-    transform: scaleY(1);
-  }
-  50% {
-    height: 100%;
-    transform: scaleY(1.2);
-  }
-  100% {
-    height: 20%;
-    transform: scaleY(1);
-  }
+	0% {
+		height: 20%;
+		transform: scaleY(1);
+	}
+	50% {
+		height: 100%;
+		transform: scaleY(1.2);
+	}
+	100% {
+		height: 20%;
+		transform: scaleY(1);
+	}
 }
 /* Add these styles to your home.css file */
 
 /* Modal Styles */
 .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    backdrop-filter: blur(3px);
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: rgba(0, 0, 0, 0.7);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+	backdrop-filter: blur(3px);
 }
 
-.playlist-modal, .delete-modal {
-    background-color: #202020;
-    border-radius: 12px;
-    width: 90%;
-    max-width: 400px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
-    animation: modalFadeIn 0.3s ease;
+.playlist-modal,
+.delete-modal {
+	background-color: #202020;
+	border-radius: 12px;
+	width: 90%;
+	max-width: 400px;
+	box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+	overflow: hidden;
+	animation: modalFadeIn 0.3s ease;
 }
 
 @keyframes modalFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid #333;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 16px 20px;
+	border-bottom: 1px solid #333;
 }
 
 .modal-header h3 {
-    margin: 0;
-    color: #fff;
-    font-size: 18px;
+	margin: 0;
+	color: #fff;
+	font-size: 18px;
 }
 
 .close-modal {
-    background: transparent;
-    border: none;
-    color: #888;
-    font-size: 18px;
-    cursor: pointer;
-    padding: 0;
-    transition: color 0.2s;
+	background: transparent;
+	border: none;
+	color: #888;
+	font-size: 18px;
+	cursor: pointer;
+	padding: 0;
+	transition: color 0.2s;
 }
 
 .close-modal:hover {
-    color: #fff;
+	color: #fff;
 }
 
 .modal-content {
-    padding: 20px;
+	padding: 20px;
 }
 
 .modal-content p {
-    margin: 0 0 15px;
-    color: #aaa;
-    font-size: 14px;
+	margin: 0 0 15px;
+	color: #aaa;
+	font-size: 14px;
 }
 
 .modal-content strong {
-    color: #fff;
+	color: #fff;
 }
 
 .playlist-name-input {
-    width: 91%;
-    background-color: #2d2d2d;
-    border: 1px solid #444;
-    border-radius: 6px;
-    padding: 12px 15px;
-    color: #fff;
-    font-size: 16px;
-    transition: border-color 0.2s;
+	width: 91%;
+	background-color: #2d2d2d;
+	border: 1px solid #444;
+	border-radius: 6px;
+	padding: 12px 15px;
+	color: #fff;
+	font-size: 16px;
+	transition: border-color 0.2s;
 }
 
 .playlist-name-input:focus {
-    border-color: #1DB954;
-    outline: none;
+	border-color: #1db954;
+	outline: none;
 }
 
 .modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    padding: 16px 20px;
-    border-top: 1px solid #333;
-    gap: 10px;
+	display: flex;
+	justify-content: flex-end;
+	padding: 16px 20px;
+	border-top: 1px solid #333;
+	gap: 10px;
 }
 
-.cancel-btn, .create-btn, .delete-btn {
-    padding: 10px 15px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
+.cancel-btn,
+.create-btn,
+.delete-btn {
+	padding: 10px 15px;
+	border-radius: 20px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
 }
 
 .cancel-btn {
-    background-color: transparent;
-    border: 1px solid #555;
-    color: #ddd;
+	background-color: transparent;
+	border: 1px solid #555;
+	color: #ddd;
 }
 
 .cancel-btn:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+	background-color: rgba(255, 255, 255, 0.1);
 }
 
 .create-btn {
-    background-color: #1DB954;
-    border: none;
-    color: #000;
+	background-color: #1db954;
+	border: none;
+	color: #000;
 }
 
 .create-btn:hover {
-    background-color: #1ed760;
-    transform: scale(1.03);
+	background-color: #1ed760;
+	transform: scale(1.03);
 }
 
 .create-btn:disabled {
-    background-color: #0f5f2a;
-    color: rgba(255, 255, 255, 0.5);
-    cursor: not-allowed;
-    transform: none;
+	background-color: #0f5f2a;
+	color: rgba(255, 255, 255, 0.5);
+	cursor: not-allowed;
+	transform: none;
 }
 
 .delete-btn {
-    background-color: #d32f2f;
-    border: none;
-    color: #fff;
+	background-color: #d32f2f;
+	border: none;
+	color: #fff;
 }
 
 .delete-btn:hover {
-    background-color: #ef5350;
-    transform: scale(1.03);
+	background-color: #ef5350;
+	transform: scale(1.03);
 }
 
 /* Playlist Item Styles */
 .playlist-item {
-    cursor: pointer;
-    border-radius: 8px;
-    transition: background-color 0.2s;
-    padding: 8px;
-    display: flex;
-    align-items: center;
-    position: relative;
+	cursor: pointer;
+	border-radius: 8px;
+	transition: background-color 0.2s;
+	padding: 8px;
+	display: flex;
+	align-items: center;
+	position: relative;
 }
 
 .playlist-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+	background-color: rgba(255, 255, 255, 0.1);
 }
 
 .playlist-item:hover .delete-playlist-btn {
-    opacity: 1;
+	opacity: 1;
 }
 
 .playlist-item.active {
-    background-color: rgba(29, 185, 84, 0.2);
-    border-left: 3px solid #1DB954;
+	background-color: rgba(29, 185, 84, 0.2);
+	border-left: 3px solid #1db954;
 }
 
 .playlist-info {
-    flex: 1;
-    margin-left: 10px;
+	flex: 1;
+	margin-left: 10px;
 }
 
 /* Delete Button for Playlist */
 .delete-playlist-btn {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background-color: rgba(211, 47, 47, 0.7);
-    color: white;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.2s, background-color 0.2s;
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background-color: rgba(211, 47, 47, 0.7);
+	color: white;
+	border: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.2s, background-color 0.2s;
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	transform: translateY(-50%);
 }
 
 .delete-playlist-btn:hover {
-    background-color: rgba(211, 47, 47, 1);
+	background-color: rgba(211, 47, 47, 1);
 }
 
 .delete-icon {
-    font-size: 16px;
-    line-height: 1;
+	font-size: 16px;
+	line-height: 1;
 }
 
 .active-playlist-indicator {
-  position: fixed;
-  top: 25px;       
-  left: 5%;      
-  background-color: rgba(0, 0, 0, 0.7);
-  color: #1DB954;
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 500;
-  z-index: 1500;
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(29, 185, 84, 0.5);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  animation: fadeIn 0.3s ease;
+	position: fixed;
+	top: 25px;
+	left: 5%;
+	background-color: rgba(0, 0, 0, 0.7);
+	color: #1db954;
+	padding: 6px 16px;
+	border-radius: 20px;
+	font-size: 14px;
+	font-weight: 500;
+	z-index: 1500;
+	backdrop-filter: blur(5px);
+	border: 1px solid rgba(29, 185, 84, 0.5);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	animation: fadeIn 0.3s ease;
 }
 
 .playlist-songs {
-  margin-top: 8px;
-  padding-left: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+	margin-top: 8px;
+	padding-left: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 }
 
 .playlist-song-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px;
-  border-radius: 6px;
-  background-color: rgba(255, 255, 255, 0.05);
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px;
+	border-radius: 6px;
+	background-color: rgba(255, 255, 255, 0.05);
 }
 
 .playlist-song-img {
-  width: 30px;
-  height: 30px;
-  object-fit: cover;
-  border-radius: 4px;
+	width: 30px;
+	height: 30px;
+	object-fit: cover;
+	border-radius: 4px;
 }
 
 .playlist-song-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  margin: 4px 0;
-  border-radius: 6px;
-  background-color: rgba(255, 255, 255, 0.05);
-  transition: background 0.2s;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 10px;
+	margin: 4px 0;
+	border-radius: 6px;
+	background-color: rgba(255, 255, 255, 0.05);
+	transition: background 0.2s;
 }
 
 .playlist-song-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+	background-color: rgba(255, 255, 255, 0.1);
 }
 
 .playlist-song-img {
-  width: 40px;
-  height: 40px;
-  border-radius: 5px;
-  object-fit: cover;
+	width: 40px;
+	height: 40px;
+	border-radius: 5px;
+	object-fit: cover;
 }
 
 .delete-song-btn {
-  background: transparent;
-  border: none;
-  color: #ff4d4f;
-  cursor: pointer;
-  font-size: 23px;
-  padding: 2px;
-  transition: color 0.2s;
-  margin-top: 8px;
+	background: transparent;
+	border: none;
+	color: #ff4d4f;
+	cursor: pointer;
+	font-size: 23px;
+	padding: 2px;
+	transition: color 0.2s;
+	margin-top: 8px;
 }
 
 .delete-song-btn:hover {
-  color: #ff1a1a;
+	color: #ff1a1a;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
 }

@@ -242,7 +242,11 @@ def get_playlists():
         if response.status_code != 200:
             return jsonify({"error": "Failed to fetch playlists"}), response.status_code
 
-        return jsonify(response.json()['items'])
+        playlists = response.json()['items']
+        filtered_playlists = list(filter(
+            lambda pl: pl['description'] == 'SoundSwipe created playlist', playlists))
+
+        return jsonify(filtered_playlists)
 
     except Exception as e:
         print(f"Error fetching playlists: {e}")
@@ -456,8 +460,6 @@ def delete_playlist():
             "error": "Failed to delete playlist",
             "details": str(e)
         }), 500
-
-# TODO
 
 
 @app.route('/api/add-track', methods=['POST'])
