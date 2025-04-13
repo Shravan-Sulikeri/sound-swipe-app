@@ -68,7 +68,7 @@ export async function getPlaylists() {
 		return playlists.map((playlist) => ({
 			id: playlist.id,
 			name: playlist.name,
-			songs: playlist.tracks?.href || [], // Fallback for missing tracks
+			songs: playlist.tracks?.href,
 			songCount: playlist.tracks?.total || 0,
 			coverImage:
 				playlist.images?.[0]?.url || "https://via.placeholder.com/100",
@@ -274,9 +274,21 @@ export const searchSpotifyTrack = async (trackName, artistName) => {
 	}
 };
 
-// TODO
 export async function getSongsFromPlaylist(playlistId) {
-	const response = await fetch(`${API_BASE_URL}/api/playlist/${playlistId}`);
-	const data = await response.json();
-	return data;
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/playlist/${playlistId}`, {
+			credentials: "include",
+		});
+
+		if (!response.ok) {
+			const errorData = await response.json();
+			throw new Error(errorData.error || "Failed to fetch playlist songs");
+		}
+
+		const data = await response.json();
+		return data.tracks || [];
+	} catch (error) {
+		console.error("Error fetching playlist songs:", error);
+		throw error; // Re-throw for the caller to handle
+	}
 }

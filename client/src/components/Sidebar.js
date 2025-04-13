@@ -3,9 +3,11 @@ import { IoIosClose } from "react-icons/io";
 import { FaSyncAlt } from "react-icons/fa";
 
 const Sidebar = ({
+	isLoadingSongs,
 	isSidebarCollapsed,
 	playlists,
 	activePlaylist,
+	playlistSongs,
 	handlePlaylistSelect,
 	handleDeleteClick,
 	openCreateModal,
@@ -84,23 +86,27 @@ const Sidebar = ({
 							{/* 🎵 Playlist Songs (only shown for selected playlist) */}
 							{activePlaylist === playlist.id && playlist.songs.length > 0 && (
 								<div className="playlist-songs">
-									{playlist.songs.map((song, index) => (
-										<div key={index} className="playlist-song-item">
-											<img
-												src={song.coverImage}
-												alt={song.name}
-												className="playlist-song-img"
-											/>
-											<span style={{ flex: 1 }}>{song.name}</span>
-											<button
-												className="delete-song-btn"
-												onClick={() => handleDeleteSong(playlist.id, index)}
-												title="Remove song"
-											>
-												<IoIosClose />
-											</button>
-										</div>
-									))}
+									{isLoadingSongs ? (
+										<div className="loading-spinner">Loading songs...</div>
+									) : (
+										playlistSongs.map((song, index) => (
+											<div key={song.id} className="playlist-song-item">
+												<img
+													src={song.coverImage}
+													alt={song.name}
+													className="playlist-song-img"
+												/>
+												<span style={{ flex: 1 }}>{song.name}</span>
+												<button
+													className="delete-song-btn"
+													onClick={() => handleDeleteSong(playlist.id, index)}
+													title="Remove song"
+												>
+													<IoIosClose />
+												</button>
+											</div>
+										))
+									)}
 								</div>
 							)}
 						</div>

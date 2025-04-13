@@ -35,6 +35,7 @@ const Home = () => {
 	// Modal states
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [activePlaylist, setActivePlaylist] = useState(null);
+	const [isLoadingSongs, setIsLoadingSongs] = useState(false);
 
 	// Delete confirmation modal
 	const [playlistToDelete, setPlaylistToDelete] = useState(null);
@@ -53,14 +54,7 @@ const Home = () => {
 		controlAudio,
 	} = useAudioControls(audioRef);
 
-	const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
 	const [playlistSongs, setPlaylistSongs] = useState([]);
-
-	const handlePlaylistClick = async (playlist) => {
-		setSelectedPlaylistId(playlist.id);
-		const songs = await getSongsFromPlaylist(playlist.id);
-		setPlaylistSongs(songs.data || []);
-	};
 
 	const loadPlaylists = async () => {
 		// First try to load from cache for instant display
@@ -150,15 +144,31 @@ const Home = () => {
 		}
 	};
 
-	const handlePlaylistSelect = (playlistId) => {
-		if (activePlaylist === playlistId) {
-			setActivePlaylist(null);
-		} else {
+	const handlePlaylistSelect = async (playlistId) => {
+		setIsLoadingSongs(true);
+
+		try {
+			if (activePlaylist === playlistId) {
+				setActivePlaylist(null);
+				setPlaylistSongs([]);
+				return;
+			}
+
 			setActivePlaylist(playlistId);
-			// find playlist
 			const selected = playlists.find((p) => p.id === playlistId);
-			//get songs from playlist and set playlist songs
-			setPlaylistSongs(selected?.songs || []);
+			if (!selected) {
+				console.warn("Playlist not found");
+				return;
+			}
+
+			const songs = await getSongsFromPlaylist(playlistId);
+			setPlaylistSongs(songs);
+		} catch (error) {
+			console.error("Error handling playlist selection:", error);
+			// Optional: Set error state
+			// setPlaylistError(error.message);
+		} finally {
+			setIsLoadingSongs(false);
 		}
 	};
 
@@ -183,62 +193,46 @@ const Home = () => {
 	};
 
 	const handleDeleteSong = async (playlistId, songIndex) => {
-		// Find the song to remove
-		const playlist = playlists.find((p) => p.id === playlistId);
-		if (!playlist?.songs?.[songIndex]) return;
+		// Find the song to remove from local state
+		if (!playlistSongs?.[songIndex]) {
+			console.warn("No song found at index:", songIndex);
+			return;
+		}
 
-		const songToRemove = playlist.songs[songIndex];
+		const songToRemove = playlistSongs[songIndex];
+
+		// Check if we have the Spotify URI (should always be true if coming from playlist)
+		if (!songToRemove.uri) {
+			console.error("Song missing Spotify URI:", songToRemove);
+			return;
+		}
 
 		try {
-			// Extract artist name
-			const artistName = Array.isArray(songToRemove.artists)
-				? songToRemove.artists[0]
-				: songToRemove.artists;
+			// Call API to remove the track using the URI we already have
+			const result = await removeTrack(songToRemove.uri, playlistId);
 
-			// Search for track in Spotify
-			const searchResult = await searchSpotifyTrack(
-				songToRemove.name,
-				artistName
-			);
-
-			if (searchResult.success) {
-				// Call API to remove the track using the URI
-				const result = await removeTrack(searchResult.uri, playlistId);
-				if (result.success) {
-					console.log(
-						`Track ${songToRemove.name} removed from playlist successfully`
-					);
-				} else {
-					console.error("Failed to remove track from playlist:", result.error);
-				}
-			} else {
-				console.warn(
-					`Could not find ${songToRemove.name} by ${artistName} on Spotify for removal`
+			if (result.success) {
+				console.log(
+					`Track ${songToRemove.name} removed from playlist successfully`
 				);
+
+				// Update local state immediately (optimistic update)
+				setPlaylistSongs((prevSongs) => [
+					...prevSongs.slice(0, songIndex),
+					...prevSongs.slice(songIndex + 1),
+				]);
+
+				// Optional: You might want to refresh the playlist data from server
+				// const updatedSongs = await getSongsFromPlaylist(playlistId);
+				// setPlaylistSongs(updatedSongs);
+			} else {
+				console.error("Failed to remove track from playlist:", result.error);
+				// Optional: Show error to user
 			}
 		} catch (error) {
 			console.error("Error removing track from playlist:", error);
+			// Optional: Show error to user
 		}
-
-		// Update UI regardless of API success
-		setPlaylists((prevPlaylists) =>
-			prevPlaylists.map((playlist) => {
-				if (playlist.id === playlistId) {
-					const updatedSongs = [...playlist.songs];
-					updatedSongs.splice(songIndex, 1);
-					return {
-						...playlist,
-						songs: updatedSongs,
-						songCount: updatedSongs.length,
-						coverImage:
-							updatedSongs.length > 0
-								? updatedSongs[0].coverImage
-								: "https://via.placeholder.com/100",
-					};
-				}
-				return playlist;
-			})
-		);
 	};
 
 	const handleExitSwiping = () => {
@@ -403,11 +397,11 @@ const Home = () => {
 	};
 
 	if (isLoading) {
-		return <SoundwaveLoader/>;
+		return <SoundwaveLoader />;
 	}
 
 	if (!currentSong) {
-		return <NoSongsScreen/>;
+		return <NoSongsScreen />;
 	}
 
 	return (
@@ -417,14 +411,16 @@ const Home = () => {
 				className={`sidebar-toggle ${isSidebarCollapsed ? "collapsed" : ""}`}
 				onClick={toggleSidebar}
 			>
-				{isSidebarCollapsed ? "☰" : "←"}
+				{isSidebarCollapsed ? "☰" : "⬅"}
 			</button>
 
 			{/* Sidebar */}
 			<Sidebar
+				isLoadingSongs={isLoadingSongs}
 				isSidebarCollapsed={isSidebarCollapsed}
 				playlists={playlists} // Fallback to empty array
 				activePlaylist={activePlaylist}
+				playlistSongs={playlistSongs}
 				handlePlaylistSelect={handlePlaylistSelect}
 				handleDeleteClick={handleDeleteClick}
 				openCreateModal={() => setShowCreateModal(true)}

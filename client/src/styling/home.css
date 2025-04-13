@@ -165,7 +165,7 @@
 
 .sidebar-toggle {
 	position: fixed;
-	top: 20px;
+	top: 4.5rem;
 	left: 20px;
 	z-index: 1000;
 	background: rgba(30, 215, 96, 0.2);
@@ -198,8 +198,11 @@
 	align-items: center;
 	margin-bottom: 30px;
 	padding-bottom: 20px;
-	margin-top: 40px;
 	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	position: sticky;
+	top: 0;
+	backdrop-filter: blur(50px);
+	z-index: 10;
 }
 
 .sidebar-header h2 {
@@ -304,13 +307,6 @@
 
 .delete-playlist-btn:hover {
 	background: rgba(255, 70, 110, 0.4);
-}
-
-/* ===== Playlist Songs ===== */
-.playlist-songs {
-	max-height: 0;
-	overflow: hidden;
-	transition: max-height 0.3s ease, margin-top 0.3s ease;
 }
 
 .playlist-item.active .playlist-songs {

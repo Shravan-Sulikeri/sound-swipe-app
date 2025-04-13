@@ -439,6 +439,59 @@ def delete_playlist():
 # tracks
 
 
+@app.route('/api/playlist/<playlistId>')
+def get_songs(playlistId):
+    '''
+    Endpoint to get the songs for a given playlist
+    '''
+    try:
+        access_token, error_response, status_code = refresh_token_if_expired()
+        if error_response:
+            print(f"Authentication error: {error_response}")
+            return jsonify({"error": "Authentication required to add tracks", "details": error_response}), status_code
+
+        url = f"https://api.spotify.com/v1/playlists/{playlistId}/tracks"
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        # Make request to Spotify API
+        response = requests.get(url, headers=headers)
+
+        if not response.ok:
+            error_msg = response.json().get('error', {}).get('message', 'Unknown error')
+            return jsonify({'error': error_msg}), response.status_code
+
+        tracks = []
+        for item in response.json().get('items', []):
+            track = item.get('track', {})
+            if not track:
+                continue
+
+            try:
+                tracks.append({
+                    'id': track["id"],
+                    'uri': track["uri"],
+                    'name': track["name"],
+                    'artist': track["artists"][0]["name"] if track.get('artists') else None,
+                    'coverImage': track['album']['images'][0]['url'] if track.get('album', {}).get('images') else None,
+                })
+            except (KeyError, IndexError) as e:
+                print(f"Skipping malformed track: {e}")
+                continue
+
+        return jsonify({'tracks': tracks}), 200
+
+    except requests.exceptions.RequestException as e:
+        print(f'Network error: {e}')
+        return jsonify({'error': 'Service unavailable'}), 503
+    except Exception as e:
+        print(f'Unexpected error: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+
+
 @app.route('/api/add-track', methods=['POST'])
 def add_tracks():
     '''
