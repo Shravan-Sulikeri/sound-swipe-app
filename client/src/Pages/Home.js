@@ -411,7 +411,7 @@ const Home = () => {
 				className={`sidebar-toggle ${isSidebarCollapsed ? "collapsed" : ""}`}
 				onClick={toggleSidebar}
 			>
-				{isSidebarCollapsed ? "☰" : "⬅"}
+				{isSidebarCollapsed ? "☰" : "←"}
 			</button>
 
 			{/* Sidebar */}

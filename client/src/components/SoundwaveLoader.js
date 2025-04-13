@@ -6,8 +6,8 @@ const SoundwaveLoader = ({ message = "Getting your tracks ready..." }) => {
     return (
             <div className="soundwave-loader">
             <video 
-                autoPlay 
-                loop 
+                autoPlay={true} 
+                loop={true} 
                 muted 
                 playsInline 
                 className="vinyl-background"
