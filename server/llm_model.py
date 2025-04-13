@@ -530,10 +530,11 @@ class RecommendationManager:
     # ! <---- This is the function that will be used to optimize the recommendations using last.fm
     def optimize_recommendations(self):
         """
-        Optimizes recommendations by creating triplets with no duplications:
-        1. Original LLM recommendation
-        2. Similar track from Last.fm
-        3. Top track from similar artist
+        Optimizes recommendations using LLM seeds to get better recommendations:
+        1. Use original LLM recommendation as seed only (not included in final output)
+        2. Get 3 tracks from similar artists (primary source)
+        3. Get 1 similar track from Last.fm (secondary source)
+        4. Get 1 top track from original artist (tertiary source)
         """
         recommendations = self.format_recommendations()
         optimized_recommendations = {}
@@ -546,122 +547,108 @@ class RecommendationManager:
                 track_name = track["track_name"]
                 artist_name = track["artist_name"]
 
-                print(f"\n🎧 Processing: {track_name} by {artist_name}")
-                triplet = []
+                print(f"\n🎧 Processing seed: {track_name} by {artist_name}")
+                lastfm_recommendations = []
+                
+                # Track the seed to avoid recommending it
+                seed_track_key = f"{track_name.lower()}|{artist_name.lower()}"
+                all_recommended_tracks.add(seed_track_key)  # Add to seen but don't include in output
 
-                # 1. Add the original LLM recommendation if not already added
-                track_key = f"{track_name.lower()}|{artist_name.lower()}"
-                if track_key not in all_recommended_tracks:
-                    print(
-                        f"✅ Original LLM recommendation: {track_name} by {artist_name}")
-                    triplet.append({
-                        "track_name": track_name,
-                        "artist_name": artist_name,
-                        "source": "llm"
-                    })
-                    all_recommended_tracks.add(track_key)
-                else:
-                    print(
-                        f"⚠️ Skipping duplicate original recommendation: {track_name} by {artist_name}")
-                    continue
+                # 1. First priority: Get tracks from similar artists (3 tracks)
+                similar_artists_count = 0
+                similar_artists = self.similarity.get_similar_artist(artist_name)
+                if similar_artists:
+                    for similar_artist in similar_artists[:8]:  # Try up to 8 similar artists to find 3 good tracks
+                        if similar_artists_count >= 3:
+                            break
 
-                # 2. Find similar track from Last.fm
-                similar_tracks = self.similarity.get_similar_tracks(
-                    track_name, artist_name)
+                        artist_top_tracks = self.similarity.get_artist_top_tracks(similar_artist, limit=3)
+                        if artist_top_tracks:
+                            for top in artist_top_tracks:
+                                top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
+                                if top_key not in all_recommended_tracks:
+                                    print(f"✅ Similar artist track: {top['name']} by {top['artist']}")
+                                    lastfm_recommendations.append({
+                                        "track_name": top["name"],
+                                        "artist_name": top["artist"],
+                                        "source": "lastfm_similar_artist"
+                                    })
+                                    all_recommended_tracks.add(top_key)
+                                    similar_artists_count += 1
+                                    if similar_artists_count >= 3:  # Get exactly 3 tracks from similar artists
+                                        break
+
+                # 2. Second priority: Get 1 similar track from Last.fm
+                similar_track_found = False
+                similar_tracks = self.similarity.get_similar_tracks(track_name, artist_name)
                 if similar_tracks:
                     for similar in similar_tracks:
                         similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
                         if similar_key not in all_recommended_tracks:
-                            print(
-                                f"✅ Last.fm similar track: {similar['name']} by {similar['artist']}")
-                            triplet.append({
+                            print(f"✅ Last.fm similar track: {similar['name']} by {similar['artist']}")
+                            lastfm_recommendations.append({
                                 "track_name": similar["name"],
                                 "artist_name": similar["artist"],
                                 "source": "lastfm_similar"
                             })
                             all_recommended_tracks.add(similar_key)
+                            similar_track_found = True
                             break
 
-                if len(triplet) < 2:
-                    simplified_name = re.sub(
-                        r'\([^)]*\)', '', track_name).strip()
-                    simplified_name = re.sub(
-                        r'\[[^\]]*\]', '', simplified_name).strip()
+                # If no similar track found with full name, try simplified name
+                if not similar_track_found:
+                    simplified_name = re.sub(r'\([^)]*\)', '', track_name).strip()
+                    simplified_name = re.sub(r'\[[^\]]*\]', '', simplified_name).strip()
                     if simplified_name != track_name:
-                        similar_tracks = self.similarity.get_similar_tracks(
-                            simplified_name, artist_name)
+                        similar_tracks = self.similarity.get_similar_tracks(simplified_name, artist_name)
                         if similar_tracks:
                             for similar in similar_tracks:
                                 similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
                                 if similar_key not in all_recommended_tracks:
-                                    print(
-                                        f"✅ Last.fm similar track (simplified name): {similar['name']} by {similar['artist']}")
-                                    triplet.append({
+                                    print(f"✅ Last.fm similar track (simplified name): {similar['name']} by {similar['artist']}")
+                                    lastfm_recommendations.append({
                                         "track_name": similar["name"],
                                         "artist_name": similar["artist"],
                                         "source": "lastfm_similar"
                                     })
                                     all_recommended_tracks.add(similar_key)
+                                    similar_track_found = True
                                     break
 
-                if len(triplet) < 2:
-                    top_tracks = self.similarity.get_artist_top_tracks(
-                        artist_name, limit=5)
-                    if top_tracks:
-                        for top in top_tracks:
-                            top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
-                            if top_key not in all_recommended_tracks:
-                                print(
-                                    f"✅ Last.fm artist top track: {top['name']} by {top['artist']}")
-                                triplet.append({
-                                    "track_name": top["name"],
-                                    "artist_name": top["artist"],
-                                    "source": "lastfm_artist_top"
-                                })
-                                all_recommended_tracks.add(top_key)
-                                break
-
-                # 3. Add a track from similar artist
-                if len(triplet) < 3:
-                    similar_artists = self.similarity.get_similar_artist(
-                        artist_name)
-                    if similar_artists:
-                        for similar_artist in similar_artists:
-                            if len(triplet) >= 3:
-                                break
-
-                            artist_top_tracks = self.similarity.get_artist_top_tracks(
-                                similar_artist, limit=5)
-                            if artist_top_tracks:
-                                for top in artist_top_tracks:
-                                    top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
-                                    if top_key not in all_recommended_tracks:
-                                        print(
-                                            f"✅ Similar artist track: {top['name']} by {top['artist']}")
-                                        triplet.append({
-                                            "track_name": top["name"],
-                                            "artist_name": top["artist"],
-                                            "source": "lastfm_similar_artist"
-                                        })
-                                        all_recommended_tracks.add(top_key)
-                                        break
-                optimized_tracks.extend(triplet)
+                # 3. Third priority: Get 1 top track from the original artist
+                top_track_found = False
+                top_tracks = self.similarity.get_artist_top_tracks(artist_name, limit=8)
+                if top_tracks:
+                    for top in top_tracks:
+                        top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
+                        if top_key not in all_recommended_tracks:
+                            print(f"✅ Last.fm artist top track: {top['name']} by {top['artist']}")
+                            lastfm_recommendations.append({
+                                "track_name": top["name"],
+                                "artist_name": top["artist"],
+                                "source": "lastfm_artist_top"
+                            })
+                            all_recommended_tracks.add(top_key)
+                            top_track_found = True
+                            break
+                                            
+                optimized_tracks.extend(lastfm_recommendations)
 
             optimized_recommendations[playlist_id] = optimized_tracks
 
+        # Add new releases
         new_releases = self.incorporate_new_releases()
         if new_releases:
             for playlist_id, tracks in optimized_recommendations.items():
                 if len(tracks) < 12:
                     added_count = 0
                     for release in new_releases:
-                        if added_count >= 2:
+                        if added_count >= 3:  # Add up to 3 new releases
                             break
 
                         release_key = f"{release['name'].lower()}|{release['artist'].lower()}"
                         if release_key not in all_recommended_tracks:
-                            print(
-                                f"✅ Adding new release: {release['name']} by {release['artist']} to playlist {playlist_id}")
+                            print(f"✅ Adding new release: {release['name']} by {release['artist']} to playlist {playlist_id}")
                             tracks.append({
                                 "track_name": release["name"],
                                 "artist_name": release["artist"],
@@ -670,6 +657,7 @@ class RecommendationManager:
                             all_recommended_tracks.add(release_key)
                             added_count += 1
 
+        # Remove any duplicates that might have slipped through
         final_recommendations = {}
         for playlist_id, tracks in optimized_recommendations.items():
             seen_in_playlist = set()
@@ -682,9 +670,10 @@ class RecommendationManager:
                     seen_in_playlist.add(track_key)
 
             final_recommendations[playlist_id] = unique_tracks
+        
         self.storage.tracks = final_recommendations
         return final_recommendations
-
+    
     def get_enhanced_recommendations(self):
         """
         Main method to get enhanced recommendations with LastFM validation
@@ -957,7 +946,326 @@ class SpotifyManagement:
             organized_data[playlist_id] = playlist_tracks
 
         return organized_data
-
+class UserPreferenceRecommender: #! <----- NOTE DISREGARD HAS NOT BEEN TESTED COMPLETE AI SLOP 
+    def __init__(self, user_token=None):
+        self.spotify_api = SpotifyAPI(external_token=user_token)
+        self.lastfm_api = LastFmAPI()
+        self.storage = GlobalVariables()
+        self.user_token = user_token
+        load_dotenv()
+        self.api_key = os.getenv("GROQ_API_KEY")
+        self.model = 'llama-3.3-70b-versatile'
+        self.groq = Groq(api_key=self.api_key)
+        self.seen_tracks = set()  # Track IDs the user has already seen
+        
+    def get_more_recommendations(self, playlist_id=None, count=10):
+        """
+        Generate more recommendations when a user runs out of songs to swipe,
+        based on the original playlist structure but with new tracks.
+        
+        Args:
+            playlist_id: Optional specific playlist to get more recommendations for
+            count: Number of recommendations to generate
+            
+        Returns:
+            List of track dictionaries with complete track info
+        """
+        print(f"Generating {count} more recommendations for swiping...")
+        
+        # 1. Get the original recommendations to use as seeds
+        original_recommender = RecommendationManager(user_token=self.user_token)
+        recommendations = original_recommender.get_enhanced_recommendations()
+        
+        if not recommendations:
+            print("No original recommendations found to use as seeds")
+            return []
+            
+        # 2. If playlist_id is specified, only use that playlist's seeds
+        if playlist_id and playlist_id in recommendations:
+            seed_tracks = recommendations[playlist_id]
+            selected_playlist = {playlist_id: seed_tracks}
+        else:
+            # Otherwise, use tracks from all playlists
+            selected_playlist = recommendations
+            
+        # 3. Generate new recommendations using existing tracks as seeds
+        new_tracks = []
+        
+        for pl_id, tracks in selected_playlist.items():
+            # Limit seeds to avoid too many similar recommendations
+            seed_limit = min(5, len(tracks))
+            
+            for i, track in enumerate(tracks[:seed_limit]):
+                if len(new_tracks) >= count:
+                    break
+                    
+                track_name = track['track_name']
+                artist_name = track['artist_name']
+                print(f"Using seed: {track_name} by {artist_name}")
+                
+                # Get recommendations from similar artists
+                similar_artists = self.lastfm_api.get_similar_artist(artist_name)
+                if similar_artists:
+                    for similar_artist in similar_artists[:3]:
+                        if len(new_tracks) >= count:
+                            break
+                            
+                        # Get top tracks from this similar artist
+                        artist_tracks = self.lastfm_api.get_artist_top_tracks(similar_artist, 3)
+                        if artist_tracks:
+                            for artist_track in artist_tracks:
+                                track_key = f"{artist_track['name'].lower()}|{artist_track['artist'].lower()}"
+                                
+                                # Check if we've already seen this track
+                                if track_key not in self.seen_tracks:
+                                    new_tracks.append({
+                                        "track_name": artist_track["name"],
+                                        "artist_name": artist_track["artist"],
+                                        "source": "more_recommendations"
+                                    })
+                                    self.seen_tracks.add(track_key)
+                                    
+                                    if len(new_tracks) >= count:
+                                        break
+        
+        # 4. If we still don't have enough tracks, get similar tracks to seeds
+        if len(new_tracks) < count:
+            for pl_id, tracks in selected_playlist.items():
+                for track in tracks[:seed_limit]:
+                    if len(new_tracks) >= count:
+                        break
+                        
+                    track_name = track['track_name']
+                    artist_name = track['artist_name']
+                    
+                    # Get tracks similar to this seed
+                    similar_tracks = self.lastfm_api.get_similar_tracks(track_name, artist_name)
+                    if similar_tracks:
+                        for similar in similar_tracks:
+                            similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
+                            
+                            if similar_key not in self.seen_tracks:
+                                new_tracks.append({
+                                    "track_name": similar["name"],
+                                    "artist_name": similar["artist"],
+                                    "source": "more_recommendations"
+                                })
+                                self.seen_tracks.add(similar_key)
+                                
+                                if len(new_tracks) >= count:
+                                    break
+        
+        # 5. As a last resort, add some new releases
+        if len(new_tracks) < count:
+            spotify_mgmt = SpotifyManagement(user_token=self.user_token)
+            new_releases = spotify_mgmt.spotify_api.fetch_new_releases()
+            
+            if new_releases:
+                for release in new_releases:
+                    release_key = f"{release['name'].lower()}|{release['artist'].lower()}"
+                    
+                    if release_key not in self.seen_tracks:
+                        new_tracks.append({
+                            "track_name": release["name"],
+                            "artist_name": release["artist"],
+                            "source": "new_release"
+                        })
+                        self.seen_tracks.add(release_key)
+                        
+                        if len(new_tracks) >= count:
+                            break
+        
+        # 6. Get full track info using Deezer API
+        spotify_mgmt = SpotifyManagement(user_token=self.user_token)
+        spotify_mgmt.storage_manager.music = new_tracks
+        full_track_data = spotify_mgmt.fetch_user_songs()
+        
+        return full_track_data
+    
+    def recommend_from_liked_songs(self, liked_songs, count=15):
+        """
+        Generate personalized recommendations based on the songs a user has liked/swiped right on.
+        
+        Args:
+            liked_songs: List of track dictionaries the user has liked
+            count: Number of recommendations to generate
+            
+        Returns:
+            List of track dictionaries with complete track info
+        """
+        if not liked_songs or len(liked_songs) == 0:
+            print("No liked songs available to base recommendations on")
+            return []
+            
+        print(f"Generating {count} recommendations based on {len(liked_songs)} liked songs...")
+        
+        # 1. Analyze liked songs to identify patterns/preferences
+        artists = {}
+        genres = set()
+        
+        for song in liked_songs:
+            artist = song.get('artist', '')
+            if artist:
+                artists[artist] = artists.get(artist, 0) + 1
+        
+        # Find top artists (most frequently liked)
+        top_artists = sorted(artists.items(), key=lambda x: x[1], reverse=True)
+        top_artists = [artist for artist, count in top_artists[:5]]
+        
+        # 2. Generate recommendations based on top artists and liked songs
+        new_recommendations = []
+        
+        # First try: get tracks from similar artists to top artists
+        for artist in top_artists:
+            if len(new_recommendations) >= count:
+                break
+                
+            similar_artists = self.lastfm_api.get_similar_artist(artist)
+            if similar_artists:
+                for similar_artist in similar_artists[:3]:
+                    if len(new_recommendations) >= count:
+                        break
+                        
+                    top_tracks = self.lastfm_api.get_artist_top_tracks(similar_artist, 3)
+                    if top_tracks:
+                        for track in top_tracks:
+                            track_key = f"{track['name'].lower()}|{track['artist'].lower()}"
+                            
+                            # Check if we've already seen this track
+                            if track_key not in self.seen_tracks:
+                                new_recommendations.append({
+                                    "track_name": track["name"],
+                                    "artist_name": track["artist"],
+                                    "source": "liked_songs_recommendation"
+                                })
+                                self.seen_tracks.add(track_key)
+                                
+                                if len(new_recommendations) >= count:
+                                    break
+        
+        # Second try: get similar tracks to liked songs
+        if len(new_recommendations) < count:
+            # Use a sample of liked songs to get similar tracks
+            sample_size = min(5, len(liked_songs))
+            for song in liked_songs[:sample_size]:
+                if len(new_recommendations) >= count:
+                    break
+                    
+                track_name = song.get('name', '')
+                artist_name = song.get('artist', '')
+                
+                if track_name and artist_name:
+                    similar_tracks = self.lastfm_api.get_similar_tracks(track_name, artist_name)
+                    if similar_tracks:
+                        for similar in similar_tracks:
+                            similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
+                            
+                            if similar_key not in self.seen_tracks:
+                                new_recommendations.append({
+                                    "track_name": similar["name"],
+                                    "artist_name": similar["artist"],
+                                    "source": "liked_songs_recommendation"
+                                })
+                                self.seen_tracks.add(similar_key)
+                                
+                                if len(new_recommendations) >= count:
+                                    break
+        
+        # Third try: Use LLM to analyze patterns and generate more diverse recommendations
+        if len(new_recommendations) < count:
+            try:
+                # Create a sample of liked songs for the prompt
+                liked_sample = liked_songs[:10] if len(liked_songs) > 10 else liked_songs
+                liked_songs_text = "\n".join([f"- {song.get('name', 'Unknown')} by {song.get('artist', 'Unknown')}" for song in liked_sample])
+                
+                prompt = (
+                    f"Based on these songs the user likes:\n\n{liked_songs_text}\n\n"
+                    f"Recommend {count - len(new_recommendations)} more songs that match their taste. "
+                    "Ensure recommendations are diverse but still match the user's preferences.\n\n"
+                    "RESPOND EXACTLY IN THIS JSON FORMAT:\n"
+                    "[\n"
+                    "  {\"name\": \"Song1\", \"artist\": \"Artist1\"},\n"
+                    "  {\"name\": \"Song2\", \"artist\": \"Artist2\"}\n"
+                    "]"
+                )
+                
+                chat_completion = self.groq.chat.completions.create(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a precise music recommendation AI. ONLY return valid JSON."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    model=self.model,
+                    temperature=0.7,
+                    max_tokens=2000,
+                    response_format={"type": "json_object"},
+                    stream=False,
+                )
+                
+                llm_response = chat_completion.choices[0].message.content
+                try:
+                    llm_recommendations = json.loads(llm_response)
+                    
+                    # Use these recommendations to find real songs in LastFM
+                    for rec in llm_recommendations:
+                        if len(new_recommendations) >= count:
+                            break
+                            
+                        rec_name = rec.get('name', '')
+                        rec_artist = rec.get('artist', '')
+                        
+                        if rec_name and rec_artist:
+                            # Check if we've already seen this track
+                            rec_key = f"{rec_name.lower()}|{rec_artist.lower()}"
+                            
+                            if rec_key not in self.seen_tracks:
+                                # Try to verify this exists via LastFM
+                                track_info = self.lastfm_api.get_track_info(rec_name, rec_artist)
+                                
+                                if track_info:
+                                    new_recommendations.append({
+                                        "track_name": rec_name,
+                                        "artist_name": rec_artist,
+                                        "source": "liked_songs_recommendation"
+                                    })
+                                    self.seen_tracks.add(rec_key)
+                                else:
+                                    # If track not found, try getting similar artists' tracks
+                                    similar_artists = self.lastfm_api.get_similar_artist(rec_artist)
+                                    if similar_artists and len(similar_artists) > 0:
+                                        top_tracks = self.lastfm_api.get_artist_top_tracks(similar_artists[0], 1)
+                                        if top_tracks and len(top_tracks) > 0:
+                                            top_track = top_tracks[0]
+                                            top_key = f"{top_track['name'].lower()}|{top_track['artist'].lower()}"
+                                            
+                                            if top_key not in self.seen_tracks:
+                                                new_recommendations.append({
+                                                    "track_name": top_track["name"],
+                                                    "artist_name": top_track["artist"],
+                                                    "source": "liked_songs_recommendation"
+                                                })
+                                                self.seen_tracks.add(top_key)
+                                
+                                if len(new_recommendations) >= count:
+                                    break
+                                    
+                except json.JSONDecodeError:
+                    print("LLM did not return valid JSON")
+                    
+            except Exception as e:
+                print(f"Error using LLM for recommendations: {e}")
+        
+        # 6. Get full track info using Deezer API
+        spotify_mgmt = SpotifyManagement(user_token=self.user_token)
+        spotify_mgmt.storage_manager.music = new_recommendations
+        full_track_data = spotify_mgmt.fetch_user_songs()
+        
+        return full_track_data
 
 # ! <--- This is a tester function but keep in mind that if there is no logged in user it will not work.
 def main():
