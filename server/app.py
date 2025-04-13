@@ -114,6 +114,8 @@ def get_user_id(access_token):
     user_id = user_response.json().get('id')
     return user_id
 
+# Session handling
+
 
 @app.route('/api/check-auth')
 def check_auth():
@@ -123,17 +125,6 @@ def check_auth():
 
     return jsonify({
         "authenticated": True,
-        "access_token": access_token
-    })
-
-
-@app.route('/api/token')
-def get_token():
-    access_token, error_response, status_code = refresh_token_if_expired()
-    if error_response:
-        return jsonify(error_response), status_code
-
-    return jsonify({
         "access_token": access_token
     })
 
@@ -200,6 +191,8 @@ def logout():
     session.clear()
     return redirect("http://localhost:3000/")
 
+# user info + setup
+
 
 @app.route('/api/me')
 def get_me():
@@ -223,34 +216,6 @@ def get_me():
     except Exception as e:
         print(f"Error fetching user data: {e}")
         return jsonify({"error": "Failed to fetch user data"}), 500
-
-
-@app.route('/api/playlists')
-def get_playlists():
-    access_token, error_response, status_code = refresh_token_if_expired()
-    if error_response:
-        return jsonify(error_response), status_code
-
-    try:
-        response = requests.get(
-            "https://api.spotify.com/v1/me/playlists",
-            headers={
-                "Authorization": f"Bearer {access_token}"
-            }
-        )
-
-        if response.status_code != 200:
-            return jsonify({"error": "Failed to fetch playlists"}), response.status_code
-
-        playlists = response.json()['items']
-        filtered_playlists = list(filter(
-            lambda pl: pl['description'] == 'SoundSwipe created playlist', playlists))
-
-        return jsonify(filtered_playlists)
-
-    except Exception as e:
-        print(f"Error fetching playlists: {e}")
-        return jsonify({"error": "Failed to fetch playlists"}), 500
 
 
 @app.route('/api/recommendations')
@@ -304,25 +269,35 @@ def get_recommendations():
             'error_info': str(e)
         }), 500
 
+# playlists
 
-@app.route('/api/session-check', methods=['POST'])
-def check_session():
-    """
-    Check if the session is valid and return the token
-    """
-    if 'token' not in session:
-        return jsonify({"error": "No session found"}), 401
 
-    token_data = session.get('token', {})
-    access_token = token_data.get('access_token')
+@app.route('/api/playlists')
+def get_playlists():
+    access_token, error_response, status_code = refresh_token_if_expired()
+    if error_response:
+        return jsonify(error_response), status_code
 
-    if not access_token:
-        return jsonify({"error": "No token in session"}), 403
+    try:
+        response = requests.get(
+            "https://api.spotify.com/v1/me/playlists",
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            }
+        )
 
-    return jsonify({
-        "message": "Session valid!",
-        "access_token": access_token
-    })
+        if response.status_code != 200:
+            return jsonify({"error": "Failed to fetch playlists"}), response.status_code
+
+        playlists = response.json()['items']
+        filtered_playlists = list(filter(
+            lambda pl: pl['description'] == 'SoundSwipe created playlist', playlists))
+
+        return jsonify(filtered_playlists)
+
+    except Exception as e:
+        print(f"Error fetching playlists: {e}")
+        return jsonify({"error": "Failed to fetch playlists"}), 500
 
 
 @app.route('/api/create-playlist', methods=['POST'])
@@ -460,6 +435,8 @@ def delete_playlist():
             "error": "Failed to delete playlist",
             "details": str(e)
         }), 500
+
+# tracks
 
 
 @app.route('/api/add-track', methods=['POST'])
