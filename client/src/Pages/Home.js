@@ -5,6 +5,8 @@ import Sidebar from "../components/Sidebar";
 import MainContent from "../components/Main";
 import CreatePlaylistModal from "../components/CreateModal";
 import DeletePlaylistModal from "../components/DeleteModal";
+import SoundwaveLoader from "../components/SoundwaveLoader";
+import NoSongsScreen from "../components/NoSongs";
 import {
 	getSampleTracks,
 	getRecommendations,
@@ -401,25 +403,11 @@ const Home = () => {
 	};
 
 	if (isLoading) {
-		return (
-			<div className="home-container">
-				<div className="welcome-section">
-					<h1>Loading...</h1>
-					<p>Getting your next song ready...</p>
-				</div>
-			</div>
-		);
+		return <SoundwaveLoader/>;
 	}
 
 	if (!currentSong) {
-		return (
-			<div className="home-container">
-				<div className="welcome-section">
-					<h1>No more songs to swipe!</h1>
-					<p>Try refreshing or starting over.</p>
-				</div>
-			</div>
-		);
+		return <NoSongsScreen/>;
 	}
 
 	return (

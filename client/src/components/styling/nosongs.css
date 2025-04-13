@@ -1,0 +1,105 @@
+/* No Songs Screen */
+.no-songs-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #121212;
+  z-index: 1000;
+  color: white;
+  text-align: center;
+  overflow: hidden;
+}
+
+.no-songs-content {
+  position: relative;
+  z-index: 2;
+  max-width: 80%;
+  padding: 2rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.no-songs-screen h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.no-songs-screen p {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+}
+
+.record-scratch-effect {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 2rem 0;
+}
+
+.scratch-line {
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(to right, transparent, #fff, transparent);
+  margin: 0.5rem 0;
+  animation: scratch 1.5s infinite;
+}
+
+.scratch-line:nth-child(1) {
+  width: 80%;
+  animation-delay: 0.1s;
+}
+
+.scratch-line:nth-child(2) {
+  width: 60%;
+  animation-delay: 0.3s;
+}
+
+.scratch-line:nth-child(3) {
+  width: 40%;
+  animation-delay: 0.5s;
+}
+
+.refresh-button {
+  background: linear-gradient(135deg, #FF3C38, #FF5C8A, #FF8A5C, #FF6FB5, #C23B94);
+  color: black;
+  border: none;
+  padding: 12px 30px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px #FF3C38;
+}
+
+.refresh-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px #FF3C38;
+}
+
+@keyframes scratch {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+/* Shared vinyl background styles */
+.vinyl-background {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 100%;
+  min-height: 100%;
+  width: auto;
+  height: auto;
+  opacity: 0.3;
+  z-index: 1;
+}
