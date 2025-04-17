@@ -15,6 +15,9 @@ import re
 import urllib
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+import asyncio
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 # **IMPORTANT** please read the all NOTES
 # NOTE: Feel free to test your own Spotify playlist if you have one, within the fetch_current_user function.
@@ -946,327 +949,136 @@ class SpotifyManagement:
             organized_data[playlist_id] = playlist_tracks
 
         return organized_data
-class UserPreferenceRecommender: #! <----- NOTE DISREGARD HAS NOT BEEN TESTED COMPLETE AI SLOP 
-    def __init__(self, user_token=None):
-        self.spotify_api = SpotifyAPI(external_token=user_token)
-        self.lastfm_api = LastFmAPI()
-        self.storage = GlobalVariables()
-        self.user_token = user_token
-        load_dotenv()
-        self.api_key = os.getenv("GROQ_API_KEY")
-        self.model = 'llama-3.3-70b-versatile'
-        self.groq = Groq(api_key=self.api_key)
-        self.seen_tracks = set()  # Track IDs the user has already seen
-        
-    def get_more_recommendations(self, playlist_id=None, count=10):
-        """
-        Generate more recommendations when a user runs out of songs to swipe,
-        based on the original playlist structure but with new tracks.
-        
-        Args:
-            playlist_id: Optional specific playlist to get more recommendations for
-            count: Number of recommendations to generate
-            
-        Returns:
-            List of track dictionaries with complete track info
-        """
-        print(f"Generating {count} more recommendations for swiping...")
-        
-        # 1. Get the original recommendations to use as seeds
-        original_recommender = RecommendationManager(user_token=self.user_token)
-        recommendations = original_recommender.get_enhanced_recommendations()
-        
-        if not recommendations:
-            print("No original recommendations found to use as seeds")
-            return []
-            
-        # 2. If playlist_id is specified, only use that playlist's seeds
-        if playlist_id and playlist_id in recommendations:
-            seed_tracks = recommendations[playlist_id]
-            selected_playlist = {playlist_id: seed_tracks}
-        else:
-            # Otherwise, use tracks from all playlists
-            selected_playlist = recommendations
-            
-        # 3. Generate new recommendations using existing tracks as seeds
-        new_tracks = []
-        
-        for pl_id, tracks in selected_playlist.items():
-            # Limit seeds to avoid too many similar recommendations
-            seed_limit = min(5, len(tracks))
-            
-            for i, track in enumerate(tracks[:seed_limit]):
-                if len(new_tracks) >= count:
-                    break
-                    
-                track_name = track['track_name']
-                artist_name = track['artist_name']
-                print(f"Using seed: {track_name} by {artist_name}")
-                
-                # Get recommendations from similar artists
-                similar_artists = self.lastfm_api.get_similar_artist(artist_name)
-                if similar_artists:
-                    for similar_artist in similar_artists[:3]:
-                        if len(new_tracks) >= count:
-                            break
-                            
-                        # Get top tracks from this similar artist
-                        artist_tracks = self.lastfm_api.get_artist_top_tracks(similar_artist, 3)
-                        if artist_tracks:
-                            for artist_track in artist_tracks:
-                                track_key = f"{artist_track['name'].lower()}|{artist_track['artist'].lower()}"
-                                
-                                # Check if we've already seen this track
-                                if track_key not in self.seen_tracks:
-                                    new_tracks.append({
-                                        "track_name": artist_track["name"],
-                                        "artist_name": artist_track["artist"],
-                                        "source": "more_recommendations"
-                                    })
-                                    self.seen_tracks.add(track_key)
-                                    
-                                    if len(new_tracks) >= count:
-                                        break
-        
-        # 4. If we still don't have enough tracks, get similar tracks to seeds
-        if len(new_tracks) < count:
-            for pl_id, tracks in selected_playlist.items():
-                for track in tracks[:seed_limit]:
-                    if len(new_tracks) >= count:
-                        break
-                        
-                    track_name = track['track_name']
-                    artist_name = track['artist_name']
-                    
-                    # Get tracks similar to this seed
-                    similar_tracks = self.lastfm_api.get_similar_tracks(track_name, artist_name)
-                    if similar_tracks:
-                        for similar in similar_tracks:
-                            similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
-                            
-                            if similar_key not in self.seen_tracks:
-                                new_tracks.append({
-                                    "track_name": similar["name"],
-                                    "artist_name": similar["artist"],
-                                    "source": "more_recommendations"
-                                })
-                                self.seen_tracks.add(similar_key)
-                                
-                                if len(new_tracks) >= count:
-                                    break
-        
-        # 5. As a last resort, add some new releases
-        if len(new_tracks) < count:
-            spotify_mgmt = SpotifyManagement(user_token=self.user_token)
-            new_releases = spotify_mgmt.spotify_api.fetch_new_releases()
-            
-            if new_releases:
-                for release in new_releases:
-                    release_key = f"{release['name'].lower()}|{release['artist'].lower()}"
-                    
-                    if release_key not in self.seen_tracks:
-                        new_tracks.append({
-                            "track_name": release["name"],
-                            "artist_name": release["artist"],
-                            "source": "new_release"
-                        })
-                        self.seen_tracks.add(release_key)
-                        
-                        if len(new_tracks) >= count:
-                            break
-        
-        # 6. Get full track info using Deezer API
-        spotify_mgmt = SpotifyManagement(user_token=self.user_token)
-        spotify_mgmt.storage_manager.music = new_tracks
-        full_track_data = spotify_mgmt.fetch_user_songs()
-        
-        return full_track_data
     
-    def recommend_from_liked_songs(self, liked_songs, count=15):
-        """
-        Generate personalized recommendations based on the songs a user has liked/swiped right on.
+class ChunkingSpotify(SpotifyManagement):
+    def __init__(self, user_token=None, chunk_size=10):
+        super.__init__(user_token=user_token)
+        self.chunk_size = chunk_size
+        self.processed_tracks = []
+        self.is_processing = False
+        self.processing_complete = False
+        self.chunks_sent = 0
+    
+    async def start_processing(self):
+        if self.is_processing:
+            return False
         
-        Args:
-            liked_songs: List of track dictionaries the user has liked
-            count: Number of recommendations to generate
+        self.if_processing = True
+        self.processing_complete = False
+        self.processed_tracks = []
+        self.chunks_sent = 0
+        
+        with ThreadPoolExecutor() as executor:
+            executor.submit(self._process_all_tracks)
+    
+    def _process_all_tracks(self):
+        try:
+            self.tracks = self.get_tracks()
+            print(f'\nProcessing {len(self.tracks)} tracks in chunks of {self.chunk_size}...\n')
+            if not self.tracks:
+                self.processing_complete = True
+                self.is_processing = False
+                return 
             
-        Returns:
-            List of track dictionaries with complete track info
-        """
-        if not liked_songs or len(liked_songs) == 0:
-            print("No liked songs available to base recommendations on")
-            return []
+            track_ids_seen = set()
             
-        print(f"Generating {count} recommendations based on {len(liked_songs)} liked songs...")
-        
-        # 1. Analyze liked songs to identify patterns/preferences
-        artists = {}
-        genres = set()
-        
-        for song in liked_songs:
-            artist = song.get('artist', '')
-            if artist:
-                artists[artist] = artists.get(artist, 0) + 1
-        
-        # Find top artists (most frequently liked)
-        top_artists = sorted(artists.items(), key=lambda x: x[1], reverse=True)
-        top_artists = [artist for artist, count in top_artists[:5]]
-        
-        # 2. Generate recommendations based on top artists and liked songs
-        new_recommendations = []
-        
-        # First try: get tracks from similar artists to top artists
-        for artist in top_artists:
-            if len(new_recommendations) >= count:
-                break
-                
-            similar_artists = self.lastfm_api.get_similar_artist(artist)
-            if similar_artists:
-                for similar_artist in similar_artists[:3]:
-                    if len(new_recommendations) >= count:
-                        break
-                        
-                    top_tracks = self.lastfm_api.get_artist_top_tracks(similar_artist, 3)
-                    if top_tracks:
-                        for track in top_tracks:
-                            track_key = f"{track['name'].lower()}|{track['artist'].lower()}"
-                            
-                            # Check if we've already seen this track
-                            if track_key not in self.seen_tracks:
-                                new_recommendations.append({
-                                    "track_name": track["name"],
-                                    "artist_name": track["artist"],
-                                    "source": "liked_songs_recommendation"
-                                })
-                                self.seen_tracks.add(track_key)
-                                
-                                if len(new_recommendations) >= count:
-                                    break
-        
-        # Second try: get similar tracks to liked songs
-        if len(new_recommendations) < count:
-            # Use a sample of liked songs to get similar tracks
-            sample_size = min(5, len(liked_songs))
-            for song in liked_songs[:sample_size]:
-                if len(new_recommendations) >= count:
-                    break
-                    
-                track_name = song.get('name', '')
-                artist_name = song.get('artist', '')
-                
-                if track_name and artist_name:
-                    similar_tracks = self.lastfm_api.get_similar_tracks(track_name, artist_name)
-                    if similar_tracks:
-                        for similar in similar_tracks:
-                            similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
-                            
-                            if similar_key not in self.seen_tracks:
-                                new_recommendations.append({
-                                    "track_name": similar["name"],
-                                    "artist_name": similar["artist"],
-                                    "source": "liked_songs_recommendation"
-                                })
-                                self.seen_tracks.add(similar_key)
-                                
-                                if len(new_recommendations) >= count:
-                                    break
-        
-        # Third try: Use LLM to analyze patterns and generate more diverse recommendations
-        if len(new_recommendations) < count:
-            try:
-                # Create a sample of liked songs for the prompt
-                liked_sample = liked_songs[:10] if len(liked_songs) > 10 else liked_songs
-                liked_songs_text = "\n".join([f"- {song.get('name', 'Unknown')} by {song.get('artist', 'Unknown')}" for song in liked_sample])
-                
-                prompt = (
-                    f"Based on these songs the user likes:\n\n{liked_songs_text}\n\n"
-                    f"Recommend {count - len(new_recommendations)} more songs that match their taste. "
-                    "Ensure recommendations are diverse but still match the user's preferences.\n\n"
-                    "RESPOND EXACTLY IN THIS JSON FORMAT:\n"
-                    "[\n"
-                    "  {\"name\": \"Song1\", \"artist\": \"Artist1\"},\n"
-                    "  {\"name\": \"Song2\", \"artist\": \"Artist2\"}\n"
-                    "]"
-                )
-                
-                chat_completion = self.groq.chat.completions.create(
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a precise music recommendation AI. ONLY return valid JSON."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    model=self.model,
-                    temperature=0.7,
-                    max_tokens=2000,
-                    response_format={"type": "json_object"},
-                    stream=False,
-                )
-                
-                llm_response = chat_completion.choices[0].message.content
+            for track in tqdm(self.tracks, desc="Processing tracks", unit="track"):
                 try:
-                    llm_recommendations = json.loads(llm_response)
+                    track_name = track['name']
+                    artist = track.get('artist', '')
+                    primary_artist = self.extract_primary_artist(artist)
                     
-                    # Use these recommendations to find real songs in LastFM
-                    for rec in llm_recommendations:
-                        if len(new_recommendations) >= count:
-                            break
-                            
-                        rec_name = rec.get('name', '')
-                        rec_artist = rec.get('artist', '')
-                        
-                        if rec_name and rec_artist:
-                            # Check if we've already seen this track
-                            rec_key = f"{rec_name.lower()}|{rec_artist.lower()}"
-                            
-                            if rec_key not in self.seen_tracks:
-                                # Try to verify this exists via LastFM
-                                track_info = self.lastfm_api.get_track_info(rec_name, rec_artist)
-                                
-                                if track_info:
-                                    new_recommendations.append({
-                                        "track_name": rec_name,
-                                        "artist_name": rec_artist,
-                                        "source": "liked_songs_recommendation"
-                                    })
-                                    self.seen_tracks.add(rec_key)
-                                else:
-                                    # If track not found, try getting similar artists' tracks
-                                    similar_artists = self.lastfm_api.get_similar_artist(rec_artist)
-                                    if similar_artists and len(similar_artists) > 0:
-                                        top_tracks = self.lastfm_api.get_artist_top_tracks(similar_artists[0], 1)
-                                        if top_tracks and len(top_tracks) > 0:
-                                            top_track = top_tracks[0]
-                                            top_key = f"{top_track['name'].lower()}|{top_track['artist'].lower()}"
-                                            
-                                            if top_key not in self.seen_tracks:
-                                                new_recommendations.append({
-                                                    "track_name": top_track["name"],
-                                                    "artist_name": top_track["artist"],
-                                                    "source": "liked_songs_recommendation"
-                                                })
-                                                self.seen_tracks.add(top_key)
-                                
-                                if len(new_recommendations) >= count:
-                                    break
-                                    
-                except json.JSONDecodeError:
-                    print("LLM did not return valid JSON")
+                    print(f"\nProcessing: {track_name} by {primary_artist}")
+                    deezer_result = self.get_deezer_track_info(track_name, primary_artist)
                     
-            except Exception as e:
-                print(f"Error using LLM for recommendations: {e}")
+                    if not deezer_result:
+                        print(f"  Trying broader search without artist constraint...")
+                        deezer_result = self.get_deezer_track_info(track_name, "")
+                    
+                    if not deezer_result:
+                        simplified_name = self.simplify_track_name(track_name)
+                        if simplified_name != track_name:
+                            print(f"  Trying simplified name: '{simplified_name}'")
+                            deezer_result = self.get_deezer_track_info(simplified_name, primary_artist)
+                    
+                    if not deezer_result:
+                        print(f"Could not find track: {track_name} by {artist}")
+                        continue
+                    
+                    track_id = deezer_result['id']
+                    if track_id in track_ids_seen:
+                        print(f"Skipping duplicate track ID: {track_id} for {track_name}")
+                        continue
+                    
+                    track_ids_seen.add(track_id)
+                    
+                    track_details = self.get_deezer_track_by_id(track_id)
+                    
+                    if not track_details:
+                        track_details = deezer_result
+                    
+                    is_new_release = track.get('source') == 'new_release'
+                    
+                    track_data = {
+                        'name': track_details['title'],
+                        'id': track_details['id'],
+                        'image': track_details['album']['cover_xl'],
+                        'artist': track_details['artist']['name'],
+                        'preview_url': track_details['preview'],
+                        'deezer_url': track_details['link'],
+                        'album': track_details['album']['title'],
+                        'duration': track_details.get('duration', 0),
+                        'lastfm_verified': True,
+                        'is_new_release': is_new_release
+                    }
+                    
+                    self.processed_tracks.append(track_data)
+                    
+                    time.sleep(0.1)
+                    
+                except Exception as e:
+                    print(f"Error processing {track['name']}: {e}")
+                    continue
+            
+            self.storage_manager.finalized_data = self.processed_tracks
+            print(f"\nSuccessfully processed {len(self.processed_tracks)} unique tracks with Deezer data")
+            
+        except Exception as e:
+            print(f"Error in background processing: {e}")
+        finally:
+            self.processing_complete = True
+            self.is_processing = False
+    
+    def get_next_chunk(self):
+        """
+        Returns the next chunk of processed tracks
         
-        # 6. Get full track info using Deezer API
-        spotify_mgmt = SpotifyManagement(user_token=self.user_token)
-        spotify_mgmt.storage_manager.music = new_recommendations
-        full_track_data = spotify_mgmt.fetch_user_songs()
+        Returns:
+            dict: {
+                'tracks': List of track objects,
+                'is_complete': Boolean indicating if processing is complete,
+                'total_processed': Total number of tracks processed so far
+            }
+        """
+        if not self.processed_tracks or self.chunks_sent * self.chunk_size >= len(self.processed_tracks):
+            return {
+                'tracks': [],
+                'is_complete': self.processing_complete,
+                'total_processed': len(self.processed_tracks)
+            }
         
-        return full_track_data
-
+        start_idx = self.chunks_sent * self.chunk_size
+        end_idx = min(start_idx + self.chunk_size, len(self.processed_tracks))
+        
+        chunk = self.processed_tracks[start_idx:end_idx]
+        self.chunks_sent += 1
+        
+        return {
+            'tracks': chunk,
+            'is_complete': self.processing_complete and end_idx >= len(self.processed_tracks),
+            'total_processed': len(self.processed_tracks)
+        }
+            
 # ! <--- This is a tester function but keep in mind that if there is no logged in user it will not work.
 def main():
     fetch = SpotifyManagement()
