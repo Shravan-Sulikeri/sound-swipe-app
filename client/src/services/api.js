@@ -239,7 +239,7 @@ export const removeTrack = async (trackId, playlistId) => {
 		};
 	}
 };
-// Add this to your api.js
+
 export const searchSpotifyTrack = async (trackName, artistName) => {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/search-track`, {
@@ -291,4 +291,100 @@ export async function getSongsFromPlaylist(playlistId) {
 		console.error("Error fetching playlist songs:", error);
 		throw error; // Re-throw for the caller to handle
 	}
-}
+};
+
+export const startTrackChunking = async () => {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/start_track_chunking`, {
+		method: "POST",
+		credentials: "include",
+		});
+		
+		if (!response.ok) {
+		const errorData = await response.json();
+		throw new Error(errorData.error || "Failed to start track chunking");
+		}
+		
+		return await response.json();
+	} catch (error) {
+		console.error("Error starting track chunking:", error);
+		throw error;
+	}
+};
+
+export const getNextTrackChunk = async () => {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/get_track_chunk`, {
+		credentials: "include",
+		});
+		
+		if (!response.ok) {
+		const errorData = await response.json();
+		throw new Error(errorData.error || "Failed to get track chunk");
+		}
+		
+		const data = await response.json();
+		
+		if (data.status === 'success' && data.data.tracks) {
+		return {
+			tracks: data.data.tracks.map((track) => ({
+			id: track.id,
+			name: track.name,
+			artists: track.artist,
+			coverImage: track.image,
+			previewUrl: track.preview_url,
+			deezerId: track.id,
+			deezerUrl: track.deezer_url,
+			album: track.album,
+			duration: track.duration,
+			})),
+			isComplete: data.data.is_complete,
+			totalProcessed: data.data.total_processed
+		};
+		}
+		
+		return {
+		tracks: [],
+		isComplete: true,
+		totalProcessed: 0
+		};
+	} catch (error) {
+		console.error("Error getting track chunk:", error);
+		throw error;
+	}
+};
+
+export const loadAllChunks = async (onChunkReceived = () => {}) => {
+	try {
+		await startTrackChunking();
+		
+		let allTracks = [];
+		let isComplete = false;
+
+		while (!isComplete) {
+		const chunkData = await getNextTrackChunk();
+		
+		if (chunkData.tracks && chunkData.tracks.length > 0) {
+			allTracks = [...allTracks, ...chunkData.tracks];
+			onChunkReceived({
+			tracks: chunkData.tracks,
+			totalLoaded: allTracks.length,
+			totalProcessed: chunkData.totalProcessed,
+			progress: chunkData.totalProcessed ? 
+				Math.round((allTracks.length / chunkData.totalProcessed) * 100) : 0
+			});
+		}
+		
+		isComplete = chunkData.isComplete;
+		
+		if (!isComplete) {
+			await new Promise(resolve => setTimeout(resolve, 1000));
+		}
+		}
+		
+		return allTracks;
+	} catch (error) {
+		console.error("Error loading all chunks:", error);
+		throw error;
+	}
+};

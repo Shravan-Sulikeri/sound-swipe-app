@@ -952,7 +952,7 @@ class SpotifyManagement:
     
 class ChunkingSpotify(SpotifyManagement):
     def __init__(self, user_token=None, chunk_size=10):
-        super.__init__(user_token=user_token)
+        super().__init__(user_token=user_token)
         self.chunk_size = chunk_size
         self.processed_tracks = []
         self.is_processing = False
@@ -963,7 +963,7 @@ class ChunkingSpotify(SpotifyManagement):
         if self.is_processing:
             return False
         
-        self.if_processing = True
+        self.is_processing = True
         self.processing_complete = False
         self.processed_tracks = []
         self.chunks_sent = 0
