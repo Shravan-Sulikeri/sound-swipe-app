@@ -171,8 +171,8 @@
 	background: rgba(30, 215, 96, 0.2);
 	border: none;
 	border-radius: 50%;
-	width: 35px;
-	height: 35px;
+	width: 40px;
+	height: 40px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -180,7 +180,6 @@
 	transition: all 0.3s ease;
 	color: rgba(30, 215, 96, 0.8);
 	font-size: 20px;
-	margin-top: 5px;
 }
 
 .sidebar-toggle:hover {
@@ -199,7 +198,6 @@
 	align-items: center;
 	margin-bottom: 30px;
 	padding-bottom: 20px;
-	margin-top: 7px;
 	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 	position: sticky;
 	top: 0;
