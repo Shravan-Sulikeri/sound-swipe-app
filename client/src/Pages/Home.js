@@ -67,14 +67,14 @@ const Home = () => {
 		if (cached) {
 			const parsedCache = JSON.parse(cached);
 			setPlaylists(parsedCache);
-			
+
 			// Initialize optimistic data from cache
 			const initialOptimisticData = {};
-			parsedCache.forEach(playlist => {
+			parsedCache.forEach((playlist) => {
 				initialOptimisticData[playlist.id] = {
 					songCount: playlist.songCount,
 					coverImage: playlist.coverImage,
-					songs: playlist.songs || []
+					songs: playlist.songs || [],
 				};
 			});
 			setOptimisticPlaylistData(initialOptimisticData);
@@ -84,89 +84,22 @@ const Home = () => {
 		try {
 			const fresh = await getPlaylists();
 			setPlaylists(fresh);
-			
 			// Update optimistic data with fresh data
 			const freshOptimisticData = {};
-			fresh.forEach(playlist => {
+			fresh.forEach((playlist) => {
 				freshOptimisticData[playlist.id] = {
 					songCount: playlist.songCount,
 					coverImage: playlist.coverImage,
-					songs: playlist.songs || []
+					songs: playlist.songs || [],
 				};
 			});
 			setOptimisticPlaylistData(freshOptimisticData);
-			
+
 			localStorage.setItem("cachedPlaylists", JSON.stringify(fresh));
 		} catch (error) {
 			console.error("Playlist refresh failed:", error);
 		}
 	};
-
-	const [chunkingProgress, setChunkingProgress] = useState({
-		isLoading: false,
-		totalLoaded: 0,
-		totalProcessed: 0,
-		progress: 0
-	});
-
-	const loadTracksWithChunking = async () => {
-		setIsLoading(false);
-		setChunkingProgress({
-			isLoading: true,
-			totalLoaded: 0,
-			totalProcessed: 0,
-			progress: 0
-		});
-		
-		try {
-			// Handle chunk reception to update UI
-			const onChunkReceived = (chunkData) => {
-			setChunkingProgress({
-				isLoading: true,
-				totalLoaded: chunkData.totalLoaded,
-				totalProcessed: chunkData.totalProcessed,
-				progress: chunkData.progress
-			});
-			};
-			
-			// Load all chunks using the existing API function
-			const allTracks = await loadAllChunks(onChunkReceived);
-			
-			// Use the loaded tracks
-			if (allTracks?.length > 0) {
-			setCurrentSong(allTracks[0]);
-			setSongQueue(allTracks.slice(1));
-			} else {
-			console.error("No songs received from chunking");
-			}
-		} catch (error) {
-			console.error("Error loading tracks with chunking:", error);
-		} finally {
-			setIsLoading(false);
-			setChunkingProgress({
-			isLoading: false,
-			totalLoaded: 0,
-			totalProcessed: 0,
-			progress: 100
-			});
-		}
-	};
-	useEffect(() => {
-		const initializeData = async () => {
-			setIsLoading(false);
-			try {
-			await Promise.all([
-				loadTracksWithChunking(), // Use chunking instead of getSampleTracks
-				loadPlaylists() // Keep loading playlists as before
-			]);
-			} catch (error) {
-			console.error("Error loading data:", error);
-			} finally {
-			setIsLoading(false);
-			}
-		};
-		initializeData();
-	}, []);
 
 	// Initialize songs when component mounts
 	useEffect(() => {
@@ -200,20 +133,20 @@ const Home = () => {
 	// Initialize optimistic data when playlists change
 	useEffect(() => {
 		const optimisticData = {};
-		playlists.forEach(playlist => {
+		playlists.forEach((playlist) => {
 			// Only initialize if not already tracked
 			if (!optimisticPlaylistData[playlist.id]) {
 				optimisticData[playlist.id] = {
 					songCount: playlist.songCount,
 					coverImage: playlist.coverImage,
-					songs: playlist.songs || []
+					songs: playlist.songs || [],
 				};
 			}
 		});
-		
+
 		// Merge with existing data
 		if (Object.keys(optimisticData).length > 0) {
-			setOptimisticPlaylistData(prev => ({...prev, ...optimisticData}));
+			setOptimisticPlaylistData((prev) => ({ ...prev, ...optimisticData }));
 		}
 	}, [playlists]);
 
@@ -223,26 +156,27 @@ const Home = () => {
 		if (activePlaylist === playlistId) {
 			return playlistSongs.length;
 		}
-		
+
 		// Otherwise use the tracking object or fall back to the playlist data
-		return optimisticPlaylistData[playlistId]?.songCount !== undefined 
-			? optimisticPlaylistData[playlistId].songCount 
-			: playlists.find(p => p.id === playlistId)?.songCount || 0;
+		return optimisticPlaylistData[playlistId]?.songCount !== undefined
+			? optimisticPlaylistData[playlistId].songCount
+			: playlists.find((p) => p.id === playlistId)?.songCount || 0;
 	};
 
 	// Helper function to get optimistic cover image
 	const getOptimisticCoverImage = (playlistId) => {
-		return optimisticPlaylistData[playlistId]?.coverImage !== undefined 
-			? optimisticPlaylistData[playlistId].coverImage 
-			: playlists.find(p => p.id === playlistId)?.coverImage || "https://via.placeholder.com/100";
+		return optimisticPlaylistData[playlistId]?.coverImage !== undefined
+			? optimisticPlaylistData[playlistId].coverImage
+			: playlists.find((p) => p.id === playlistId)?.coverImage ||
+					"https://via.placeholder.com/100";
 	};
 
 	// Update playlists with optimistic data for components
 	const getOptimisticPlaylists = () => {
-		return playlists.map(playlist => ({
+		return playlists.map((playlist) => ({
 			...playlist,
 			songCount: getOptimisticSongCount(playlist.id),
-			coverImage: getOptimisticCoverImage(playlist.id)
+			coverImage: getOptimisticCoverImage(playlist.id),
 		}));
 	};
 
@@ -256,11 +190,12 @@ const Home = () => {
 	const handleCreatePlaylist = async (playlistName) => {
 		try {
 			// Default cover image
-			const defaultCoverImage = likedSongs[0]?.coverImage || "https://via.placeholder.com/100";
-			
+			const defaultCoverImage =
+				likedSongs[0]?.coverImage || "https://via.placeholder.com/100";
+
 			// Create an optimistic playlist ID (temporary)
 			const temporaryId = `temp-${Date.now()}`;
-			
+
 			// Add optimistic playlist to UI immediately
 			const optimisticPlaylist = {
 				id: temporaryId,
@@ -269,18 +204,18 @@ const Home = () => {
 				songCount: 0,
 				coverImage: defaultCoverImage,
 			};
-			
-			setPlaylists(prev => [...prev, optimisticPlaylist]);
+
+			setPlaylists((prev) => [...prev, optimisticPlaylist]);
 			setActivePlaylist(temporaryId);
-			setOptimisticPlaylistData(prev => ({
+			setOptimisticPlaylistData((prev) => ({
 				...prev,
 				[temporaryId]: {
 					songCount: 0,
 					coverImage: defaultCoverImage,
-					songs: []
-				}
+					songs: [],
+				},
 			}));
-			
+
 			// Actually create the playlist in the database
 			const playlistData = await createPlaylist(playlistName);
 
@@ -289,21 +224,23 @@ const Home = () => {
 			}
 
 			// Replace temporary playlist with real one from server
-			setPlaylists(prev => 
-				prev.map(p => p.id === temporaryId ? 
-					{
-						...p,
-						id: playlistData.id
-					} : p
+			setPlaylists((prev) =>
+				prev.map((p) =>
+					p.id === temporaryId
+						? {
+								...p,
+								id: playlistData.id,
+						  }
+						: p
 				)
 			);
-			
+
 			// Update active playlist reference
 			setActivePlaylist(playlistData.id);
-			
+
 			// Update optimistic data
-			setOptimisticPlaylistData(prev => {
-				const newData = {...prev};
+			setOptimisticPlaylistData((prev) => {
+				const newData = { ...prev };
 				// Transfer data from temp ID to real ID
 				newData[playlistData.id] = newData[temporaryId];
 				// Remove temp ID
@@ -312,18 +249,20 @@ const Home = () => {
 			});
 
 			setShowCreateModal(false);
+
+			// Simple success feedback
 			console.log("Playlist created successfully:", playlistData);
 		} catch (error) {
 			console.error("Playlist creation error:", error);
 
 			// Remove optimistic playlist on error
 			const temporaryId = `temp-${Date.now()}`;
-			setPlaylists(prev => prev.filter(p => p.id !== temporaryId));
+			setPlaylists((prev) => prev.filter((p) => p.id !== temporaryId));
 			setActivePlaylist(null);
-			
+
 			let errorMessage = "Failed to create playlist";
 			alert(errorMessage);
-			
+
 			// Reopen modal if error occurred
 			setShowCreateModal(true);
 		}
@@ -354,15 +293,15 @@ const Home = () => {
 			// Then fetch from server
 			const songs = await getSongsFromPlaylist(playlistId);
 			setPlaylistSongs(songs);
-			
+
 			// Update optimistic data with actual value
-			setOptimisticPlaylistData(prev => ({
+			setOptimisticPlaylistData((prev) => ({
 				...prev,
 				[playlistId]: {
 					...prev[playlistId],
 					songCount: songs.length,
-					songs: songs
-				}
+					songs: songs,
+				},
 			}));
 		} catch (error) {
 			console.error("Error handling playlist selection:", error);
@@ -378,38 +317,38 @@ const Home = () => {
 
 	const handleDeletePlaylist = async (playlistId) => {
 		// Optimistically remove from UI first
-		const playlistToRemove = playlists.find(p => p.id === playlistId);
-		
-		setPlaylists(prev => prev.filter(p => p.id !== playlistId));
+		const playlistToRemove = playlists.find((p) => p.id === playlistId);
+
+		setPlaylists((prev) => prev.filter((p) => p.id !== playlistId));
 		if (activePlaylist === playlistId) {
 			setActivePlaylist(null);
 			setPlaylistSongs([]);
 		}
-		
+
 		try {
 			await deletePlaylist(playlistId);
-			
+
 			// Remove from optimistic data
-			setOptimisticPlaylistData(prev => {
-				const newData = {...prev};
+			setOptimisticPlaylistData((prev) => {
+				const newData = { ...prev };
 				delete newData[playlistId];
 				return newData;
 			});
-			
+
 			console.log(`Playlist ${playlistToDelete} deleted successfully`);
 		} catch (error) {
 			console.error("Deletion failed:", error);
-			
+
 			// Restore the playlist if deletion fails
 			if (playlistToRemove) {
-				setPlaylists(prev => [...prev, playlistToRemove]);
-				setOptimisticPlaylistData(prev => ({
+				setPlaylists((prev) => [...prev, playlistToRemove]);
+				setOptimisticPlaylistData((prev) => ({
 					...prev,
 					[playlistId]: {
 						songCount: playlistToRemove.songCount,
 						coverImage: playlistToRemove.coverImage,
-						songs: playlistToRemove.songs || []
-					}
+						songs: playlistToRemove.songs || [],
+					},
 				}));
 			}
 		}
@@ -435,29 +374,29 @@ const Home = () => {
 			...playlistSongs.slice(0, songIndex),
 			...playlistSongs.slice(songIndex + 1),
 		];
-		
+
 		setPlaylistSongs(updatedSongs);
-		
+
 		// Update optimistic data
-		setOptimisticPlaylistData(prev => {
+		setOptimisticPlaylistData((prev) => {
 			const currentData = prev[playlistId] || {};
 			const newCount = Math.max(0, (currentData.songCount || 0) - 1);
-			
+
 			// Determine new cover image - if we removed the first song and there are other songs,
 			// use the new first song's cover image
 			let newCoverImage = currentData.coverImage;
 			if (songIndex === 0 && updatedSongs.length > 0) {
 				newCoverImage = updatedSongs[0].coverImage;
 			}
-			
+
 			return {
 				...prev,
 				[playlistId]: {
 					...currentData,
 					songCount: newCount,
 					coverImage: newCoverImage,
-					songs: updatedSongs
-				}
+					songs: updatedSongs,
+				},
 			};
 		});
 
@@ -468,20 +407,22 @@ const Home = () => {
 			if (!result.success) {
 				throw new Error(result.error || "Failed to remove track");
 			}
-			
-			console.log(`Track ${songToRemove.name} removed from playlist successfully`);
+
+			console.log(
+				`Track ${songToRemove.name} removed from playlist successfully`
+			);
 		} catch (error) {
 			console.error("Error removing track from playlist:", error);
-			
+
 			// Rollback optimistic update on error
-			setPlaylistSongs(prev => [
+			setPlaylistSongs((prev) => [
 				...prev.slice(0, songIndex),
 				songToRemove,
-				...prev.slice(songIndex)
+				...prev.slice(songIndex),
 			]);
-			
+
 			// Restore optimistic data
-			setOptimisticPlaylistData(prev => {
+			setOptimisticPlaylistData((prev) => {
 				const currentData = prev[playlistId] || {};
 				return {
 					...prev,
@@ -491,9 +432,9 @@ const Home = () => {
 						songs: [
 							...playlistSongs.slice(0, songIndex),
 							songToRemove,
-							...playlistSongs.slice(songIndex)
-						]
-					}
+							...playlistSongs.slice(songIndex),
+						],
+					},
 				};
 			});
 		}
@@ -522,26 +463,28 @@ const Home = () => {
 			if (activePlaylist) {
 				// Keep track of the current song for rollback if needed
 				const songToAdd = currentSong;
-				
+
 				// Optimistically update song list
 				const updatedSongs = [...playlistSongs, songToAdd];
 				setPlaylistSongs(updatedSongs);
-				
+
 				// Optimistically update data - cover image only changes if this is the first song
-				setOptimisticPlaylistData(prev => {
+				setOptimisticPlaylistData((prev) => {
 					const currentData = prev[activePlaylist] || {};
 					const newCount = (currentData.songCount || 0) + 1;
 					const isFirstSong = newCount === 1;
-					
+
 					return {
 						...prev,
 						[activePlaylist]: {
 							...currentData,
 							songCount: newCount,
 							// Only update cover image if this is the first song
-							coverImage: isFirstSong ? songToAdd.coverImage : currentData.coverImage,
-							songs: updatedSongs
-						}
+							coverImage: isFirstSong
+								? songToAdd.coverImage
+								: currentData.coverImage,
+							songs: updatedSongs,
+						},
 					};
 				});
 
@@ -558,9 +501,11 @@ const Home = () => {
 					);
 
 					if (!searchResult.success) {
-						throw new Error(`Could not find ${currentSong.name} by ${artistName} on Spotify`);
+						throw new Error(
+							`Could not find ${currentSong.name} by ${artistName} on Spotify`
+						);
 					}
-					
+
 					// Use the track URI for adding to playlist
 					const trackUri = searchResult.uri;
 
@@ -569,32 +514,34 @@ const Home = () => {
 					if (!result.success) {
 						throw new Error(result.error || "Failed to add track to playlist");
 					}
-					
-					console.log(`Track ${currentSong.name} added to playlist successfully`);
+
+					console.log(
+						`Track ${currentSong.name} added to playlist successfully`
+					);
 				} catch (error) {
 					console.error("Error adding track to playlist:", error);
-					
+
 					// Rollback optimistic updates on failure
-					setPlaylistSongs(prev => prev.filter(song => song !== songToAdd));
-					
-					setOptimisticPlaylistData(prev => {
+					setPlaylistSongs((prev) => prev.filter((song) => song !== songToAdd));
+
+					setOptimisticPlaylistData((prev) => {
 						const currentData = prev[activePlaylist] || {};
 						const newCount = Math.max(0, (currentData.songCount || 0) - 1);
-						
+
 						// Determine if we need to rollback the cover image
 						let coverImage = currentData.coverImage;
 						if (newCount === 0) {
 							coverImage = "https://via.placeholder.com/100"; // Default image when empty
 						}
-						
+
 						return {
 							...prev,
 							[activePlaylist]: {
 								...currentData,
 								songCount: newCount,
 								coverImage: coverImage,
-								songs: playlistSongs.filter(song => song !== songToAdd)
-							}
+								songs: playlistSongs.filter((song) => song !== songToAdd),
+							},
 						};
 					});
 				}
