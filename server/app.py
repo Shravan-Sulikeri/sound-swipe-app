@@ -3,8 +3,9 @@ import time
 import base64
 import requests
 import urllib.parse
+import json
 from dotenv import load_dotenv
-from flask import Flask, request, redirect, jsonify, session, make_response
+from flask import Flask, request, redirect, jsonify, session, make_response, Response, stream_with_context
 from flask_cors import CORS
 from pymongo import MongoClient
 from flask_session import Session
@@ -270,6 +271,63 @@ def get_recommendations():
             'message': 'Unable to generate recommendations at this time',
             'error_info': str(e)
         }), 500
+
+@app.route('/api/recommendations-stream')
+def get_recommendations_stream():
+    try:
+        print("New recommendations stream connection received")
+        access_token, error_response, status_code = refresh_token_if_expired()
+
+        if error_response:
+            print(f"Authentication error in stream: {error_response}")
+            return jsonify({"error": "Authentication required for recommendations"}), status_code
+
+        user_id = get_user_id(access_token=access_token)
+        if user_id in user_recommendation_cache:
+            print(f"Streaming cached recommendations for user {user_id}")
+            def stream_cached():
+                try:
+                    batch = []
+                    for track in user_recommendation_cache[user_id]:
+                        batch.append(track)
+                        if len(batch) == 20:
+                            print(f"Sending batch of {len(batch)} cached tracks to frontend")
+                            yield f"data: {json.dumps(batch)}\n\n"
+                            batch = []
+                    if batch:  # Send any remaining tracks
+                        print(f"Sending final batch of {len(batch)} cached tracks to frontend")
+                        yield f"data: {json.dumps(batch)}\n\n"
+                except Exception as e:
+                    print(f"Error in cached stream: {str(e)}")
+                    yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            return Response(stream_with_context(stream_cached()), mimetype='text/event-stream')
+
+        print(f"Generating and streaming recommendations for user {user_id}")
+        user_spotify_manager = SpotifyManagement(user_token=access_token)
+        tracks_generator = user_spotify_manager.fetch_user_songs_streamed()
+
+        def generate():
+            try:
+                batch = []
+                for track in tracks_generator:
+                    print(f"Processing track: {track.get('name', 'Unknown')} by {track.get('artist', 'Unknown')}")
+                    batch.append(track)
+                    if len(batch) == 20:
+                        print(f"Sending batch of {len(batch)} tracks to frontend")
+                        yield f"data: {json.dumps(batch)}\n\n"
+                        batch = []
+                if batch:  # Send any remaining tracks
+                    print(f"Sending final batch of {len(batch)} tracks to frontend")
+                    yield f"data: {json.dumps(batch)}\n\n"
+            except Exception as e:
+                print(f"Error in stream generation: {str(e)}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+        return Response(stream_with_context(generate()), mimetype='text/event-stream')
+
+    except Exception as e:
+        print(f"Critical error in recommendations stream: {str(e)}")
+        return Response(f"data: {json.dumps({'error': str(e)})}\n\n", mimetype='text/event-stream')
 
 # playlists
 
@@ -690,97 +748,97 @@ def search_track():
         print(f"Error in search-track endpoint: {str(e)}")
         return jsonify({"error": "Server error", "details": str(e)}), 500
 
-@app.route('/api/start_track_chunking', methods=['POST'])
-def start_track_chunking():
-    """Start processing tracks in chunks in the background"""
-    try:
-        access_token, error_response, status_code = refresh_token_if_expired()
-        if error_response:
-            return jsonify(error_response), status_code
+# @app.route('/api/start_track_chunking', methods=['POST'])
+# def start_track_chunking():
+#     """Start processing tracks in chunks in the background"""
+#     try:
+#         access_token, error_response, status_code = refresh_token_if_expired()
+#         if error_response:
+#             return jsonify(error_response), status_code
         
-        user_id = get_user_id(access_token)
+#         user_id = get_user_id(access_token)
         
-        # Create chunking manager if not exists
-        if user_id not in user_chunking_cache:
-            user_chunking_cache[user_id] = ChunkingSpotify(user_token=access_token)
+#         # Create chunking manager if not exists
+#         if user_id not in user_chunking_cache:
+#             user_chunking_cache[user_id] = ChunkingSpotify(user_token=access_token)
         
-        # Start the processing in background
-        user_chunking_cache[user_id].start_processing()
+#         # Start the processing in background
+#         user_chunking_cache[user_id].start_processing()
         
-        return jsonify({
-            'status': 'success',
-            'message': 'Track processing started'
-        })
-    except Exception as e:
-        print(f"Error starting track chunking: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+#         return jsonify({
+#             'status': 'success',
+#             'message': 'Track processing started'
+#         })
+#     except Exception as e:
+#         print(f"Error starting track chunking: {e}")
+#         return jsonify({
+#             'status': 'error',
+#             'message': str(e)
+#         }), 500
 
-@app.route('/api/get_track_chunk')
-def get_track_chunk():
-    """Get the next chunk of processed tracks"""
-    try:
-        access_token, error_response, status_code = refresh_token_if_expired()
-        if error_response:
-            return jsonify(error_response), status_code
+# @app.route('/api/get_track_chunk')
+# def get_track_chunk():
+#     """Get the next chunk of processed tracks"""
+#     try:
+#         access_token, error_response, status_code = refresh_token_if_expired()
+#         if error_response:
+#             return jsonify(error_response), status_code
         
-        user_id = get_user_id(access_token)
+#         user_id = get_user_id(access_token)
         
-        if user_id not in user_chunking_cache:
-            return jsonify({
-                'status': 'error',
-                'message': 'Processing not started'
-            }), 400
+#         if user_id not in user_chunking_cache:
+#             return jsonify({
+#                 'status': 'error',
+#                 'message': 'Processing not started'
+#             }), 400
         
-        chunk_data = user_chunking_cache[user_id].get_next_chunk()
+#         chunk_data = user_chunking_cache[user_id].get_next_chunk()
         
-        return jsonify({
-            'status': 'success',
-            'data': chunk_data
-        })
-    except Exception as e:
-        print(f"Error getting track chunk: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+#         return jsonify({
+#             'status': 'success',
+#             'data': chunk_data
+#         })
+#     except Exception as e:
+#         print(f"Error getting track chunk: {e}")
+#         return jsonify({
+#             'status': 'error',
+#             'message': str(e)
+#         }), 500
 
-@app.route('/api/track_chunk')
-def track_chunking():
-    '''
-    Endpoint for initializing track chunking process
-    '''
-    try:
-        access_token, error_response, status_code = refresh_token_if_expired()
+# @app.route('/api/track_chunk')
+# def track_chunking():
+#     '''
+#     Endpoint for initializing track chunking process
+#     '''
+#     try:
+#         access_token, error_response, status_code = refresh_token_if_expired()
         
-        if error_response:
-            return jsonify({'error': 'Authentication required for track chunking'}), status_code
+#         if error_response:
+#             return jsonify({'error': 'Authentication required for track chunking'}), status_code
         
-        user_id = get_user_id(access_token=access_token)
+#         user_id = get_user_id(access_token=access_token)
         
-        # Create a new chunking manager instance
-        chunking_manager = ChunkingSpotify(user_token=access_token)
-        user_chunking_cache[user_id] = chunking_manager
+#         # Create a new chunking manager instance
+#         chunking_manager = ChunkingSpotify(user_token=access_token)
+#         user_chunking_cache[user_id] = chunking_manager
         
-        # Start the processing
-        chunking_manager.start_processing()
+#         # Start the processing
+#         chunking_manager.start_processing()
         
-        return jsonify({
-            'status': 'success',
-            'message': 'Track chunking process started',
-            'total_tracks': 0,  # Will be updated as processing continues
-            'is_complete': False
-        })
+#         return jsonify({
+#             'status': 'success',
+#             'message': 'Track chunking process started',
+#             'total_tracks': 0,  # Will be updated as processing continues
+#             'is_complete': False
+#         })
 
-    except Exception as e:
-        print(f"Error starting track chunking: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': 'Unable to start track chunking',
-            'error_info': str(e)
-        }), 500
+#     except Exception as e:
+#         print(f"Error starting track chunking: {e}")
+#         return jsonify({
+#             'status': 'error',
+#             'message': 'Unable to start track chunking',
+#             'error_info': str(e)
+#         }), 500
         
 # playlists
 

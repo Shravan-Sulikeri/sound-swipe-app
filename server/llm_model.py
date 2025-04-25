@@ -1,4 +1,3 @@
-
 from dotenv import load_dotenv
 import os
 import base64
@@ -19,7 +18,6 @@ from spotipy.oauth2 import SpotifyOAuth
 import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
-import encodings
 
 # **IMPORTANT** please read the all NOTES
 # NOTE: Feel free to test your own Spotify playlist if you have one, within the fetch_current_user function.
@@ -199,8 +197,7 @@ class PlaylistManager:
             return formatted_output
         elif (x == 1):
             if self.user_token:
-                playlist = self.spotify_api.fetch_logged_in_user_playlist(
-                    self.token)
+                playlist = self.spotify_api.fetch_logged_in_user_playlist(token=self.user_token)
             else:
                 playlist = self.spotify_api.fetch_current_user_playlists(
                     self.token)
@@ -239,7 +236,7 @@ class LastFmAPI:  # ! <---- This is the class that will be used to get the last.
             data = response.json()
             if 'similarartists' in data and 'artist' in data['similarartists']:
                 similar_artists = [x['name']
-                                   for x in data['similarartists']['artist']]
+                                for x in data['similarartists']['artist']]
                 return similar_artists
             else:
                 print(f"No similar artists found for {artist_name}")
@@ -356,22 +353,14 @@ class RecommendationManager:
         Enhanced method with more robust error handling and debugging
         """
         try:
-            # Optional: safely set agent_info if applicable
-            try:
-                agent_contact = getattr(self, 'agent_contact', '')  # Or replace with actual value
-                agent_telno = getattr(self, 'agent_telno', '')      # Or replace with actual value
-                self.agent_info = u' '.join((agent_contact, agent_telno)).encode('utf-8').strip()
-            except Exception as encoding_error:
-                print("Error encoding agent_info:", encoding_error)
-                self.agent_info = b''
-
             playlists = self.combinator.combining_playlist_and_track()
             if isinstance(playlists, dict):
                 print("Playlists Found:")
                 for name, tracks in playlists.items():
-                    print(f" 💽 {name.encode('ascii', errors='ignore').decode('utf-8')}: {len(tracks)} tracks")
+                    print(f" 💽 {name}: {len(tracks)} tracks")
             else:
-                print("Playlist retrieval returned non-dictionary type:", type(playlists))
+                print("Playlist retrieval returned non-dictionary type:",
+                      type(playlists))
                 return None
 
             prompt = (
@@ -420,7 +409,7 @@ class RecommendationManager:
             )
             full_response = chat_completion.choices[0].message.content
             print("\n------------ RAW AI RESPONSE ------------")
-            print(full_response.encode('utf-8', errors='ignore').decode('utf-8'))
+            print(full_response)
             print("------------ END RAW RESPONSE -----------\n")
             try:
                 parsed_response = json.loads(full_response)
@@ -435,7 +424,6 @@ class RecommendationManager:
             print("UNEXPECTED ERROR IN RECOMMENDATION GENERATION:")
             traceback.print_exc()
             return None
-
 
     def format_recommendations(self):
         """
@@ -927,6 +915,56 @@ class SpotifyManagement:
             f"\nSuccessfully processed {len(track_data)} unique tracks with Deezer data")
         return self.storage_manager.finalized_data
 
+    def fetch_user_songs_streamed(self):
+        self.tracks = self.get_tracks()
+        print('\nFetching track data using deezer api for optimized recommendations...\n')
+
+        if not self.tracks:
+            return
+
+        track_ids_seen = set()
+
+        for track in self.tracks:
+            try:
+                track_name = track['name']
+                artist = track.get('artist', '')
+                primary_artist = self.extract_primary_artist(artist)
+
+                deezer_result = self.get_deezer_track_info(track_name, primary_artist) or \
+                                self.get_deezer_track_info(track_name, "") or \
+                                self.get_deezer_track_info(self.simplify_track_name(track_name), primary_artist)
+
+                if not deezer_result:
+                    continue
+
+                track_id = deezer_result['id']
+                if track_id in track_ids_seen:
+                    continue
+
+                track_ids_seen.add(track_id)
+                track_details = self.get_deezer_track_by_id(track_id) or deezer_result
+
+                is_new_release = track.get('source') == 'new_release'
+
+                result = {
+                    'name': track_details['title'],
+                    'id': track_details['id'],
+                    'image': track_details['album']['cover_xl'],
+                    'artist': track_details['artist']['name'],
+                    'preview_url': track_details['preview'],
+                    'deezer_url': track_details['link'],
+                    'album': track_details['album']['title'],
+                    'duration': track_details.get('duration', 0),
+                    'lastfm_verified': True,
+                    'is_new_release': is_new_release
+                }
+
+                yield result
+
+            except Exception as e:
+                print(f"Error processing {track['name']}: {e}")
+                continue
+
     # ! <---- Dont know why this is added, this cn be removed it not needed or planned to be used
     def organize_by_playlist(self):
         """
@@ -962,15 +1000,20 @@ class SpotifyManagement:
         return organized_data
     
 class ChunkingSpotify(SpotifyManagement):
-    def __init__(self, user_token=None, chunk_size=10):
+    def __init__(self, user_token=None, chunk_size=20):
         super().__init__(user_token=user_token)
         self.chunk_size = chunk_size
         self.processed_tracks = []
         self.is_processing = False
         self.processing_complete = False
         self.chunks_sent = 0
+        self.last_sent_index = 0
     
     async def start_processing(self):
+        """
+        Starts the background processing of tracks.
+        Returns True if processing started, False if already in progress.
+        """
         if self.is_processing:
             return False
         
@@ -978,14 +1021,23 @@ class ChunkingSpotify(SpotifyManagement):
         self.processing_complete = False
         self.processed_tracks = []
         self.chunks_sent = 0
+        self.last_sent_index = 0
         
+        # Start processing in a separate thread
         with ThreadPoolExecutor() as executor:
             executor.submit(self._process_all_tracks)
+        
+        return True
     
     def _process_all_tracks(self):
+        """
+        Background task that processes all tracks.
+        This runs in a separate thread to not block the main application.
+        """
         try:
             self.tracks = self.get_tracks()
             print(f'\nProcessing {len(self.tracks)} tracks in chunks of {self.chunk_size}...\n')
+            
             if not self.tracks:
                 self.processing_complete = True
                 self.is_processing = False
@@ -1045,6 +1097,7 @@ class ChunkingSpotify(SpotifyManagement):
                     
                     self.processed_tracks.append(track_data)
                     
+                    # Brief delay to prevent API rate limiting
                     time.sleep(0.1)
                     
                 except Exception as e:
@@ -1056,45 +1109,67 @@ class ChunkingSpotify(SpotifyManagement):
             
         except Exception as e:
             print(f"Error in background processing: {e}")
+            traceback.print_exc()
         finally:
             self.processing_complete = True
             self.is_processing = False
     
     def get_next_chunk(self):
         """
-        Returns the next chunk of processed tracks
+        Returns the next available chunk of processed tracks.
+        If no new tracks are available but processing is still ongoing,
+        returns an empty list with status information.
         
         Returns:
             dict: {
-                'tracks': List of track objects,
+                'tracks': List of newly processed track objects since last call,
                 'is_complete': Boolean indicating if processing is complete,
                 'total_processed': Total number of tracks processed so far
             }
         """
-        if not self.processed_tracks or self.chunks_sent * self.chunk_size >= len(self.processed_tracks):
+        if not self.processed_tracks:
+            return {
+                'tracks': [],
+                'is_complete': self.processing_complete,
+                'total_processed': 0
+            }
+        
+        # Get tracks that haven't been sent yet
+        if self.last_sent_index >= len(self.processed_tracks):
             return {
                 'tracks': [],
                 'is_complete': self.processing_complete,
                 'total_processed': len(self.processed_tracks)
             }
         
-        start_idx = self.chunks_sent * self.chunk_size
-        end_idx = min(start_idx + self.chunk_size, len(self.processed_tracks))
-        
-        chunk = self.processed_tracks[start_idx:end_idx]
+        end_idx = min(self.last_sent_index + self.chunk_size, len(self.processed_tracks))
+        chunk = self.processed_tracks[self.last_sent_index:end_idx]
+        self.last_sent_index = end_idx
         self.chunks_sent += 1
         
         return {
             'tracks': chunk,
             'is_complete': self.processing_complete and end_idx >= len(self.processed_tracks),
-            'total_processed': len(self.processed_tracks)
+            'total_processed': len(self.processed_tracks),
+            'chunk_number': self.chunks_sent
         }
-            
-# ! <--- This is a tester function but keep in mind that if there is no logged in user it will not work.
-def main():
-    fetch = SpotifyManagement()
-    fetch_songs = fetch.fetch_user_songs()
-    return fetch_songs
+    
+    def get_progress(self):
+        """
+        Returns the current progress of track processing.
+        
+        Returns:
+            dict: {
+                'tracks_processed': Number of tracks processed so far,
+                'is_complete': Boolean indicating if processing is complete,
+                'is_processing': Boolean indicating if processing is ongoing
+            }
+        """
+        return {
+            'tracks_processed': len(self.processed_tracks),
+            'is_complete': self.processing_complete,
+            'is_processing': self.is_processing
+        }
 
 
 if __name__ == '__main__':

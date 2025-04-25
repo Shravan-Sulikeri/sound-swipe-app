@@ -1,3 +1,4 @@
+import { useEffect, useState, useRef } from "react";
 export const API_BASE_URL = "http://localhost:3001";
 
 // recommendation model
@@ -293,98 +294,202 @@ export async function getSongsFromPlaylist(playlistId) {
 	}
 };
 
-export const startTrackChunking = async () => {
-	try {
-		const response = await fetch(`${API_BASE_URL}/api/start_track_chunking`, {
-		method: "POST",
-		credentials: "include",
-		});
+// export const startTrackChunking = async () => {
+// 	try {
+// 		const response = await fetch(`${API_BASE_URL}/api/start_track_chunking`, {
+// 		method: "POST",
+// 		credentials: "include",
+// 		});
 		
-		if (!response.ok) {
-		const errorData = await response.json();
-		throw new Error(errorData.error || "Failed to start track chunking");
-		}
+// 		if (!response.ok) {
+// 		const errorData = await response.json();
+// 		throw new Error(errorData.error || "Failed to start track chunking");
+// 		}
 		
-		return await response.json();
-	} catch (error) {
-		console.error("Error starting track chunking:", error);
-		throw error;
-	}
-};
+// 		return await response.json();
+// 	} catch (error) {
+// 		console.error("Error starting track chunking:", error);
+// 		throw error;
+// 	}
+// };
 
-export const getNextTrackChunk = async () => {
-	try {
-		const response = await fetch(`${API_BASE_URL}/api/get_track_chunk`, {
-		credentials: "include",
-		});
+// export const getNextTrackChunk = async () => {
+// 	try {
+// 		const response = await fetch(`${API_BASE_URL}/api/get_track_chunk`, {
+// 		credentials: "include",
+// 		});
 		
-		if (!response.ok) {
-		const errorData = await response.json();
-		throw new Error(errorData.error || "Failed to get track chunk");
-		}
+// 		if (!response.ok) {
+// 		const errorData = await response.json();
+// 		throw new Error(errorData.error || "Failed to get track chunk");
+// 		}
 		
-		const data = await response.json();
+// 		const data = await response.json();
 		
-		if (data.status === 'success' && data.data.tracks) {
-		return {
-			tracks: data.data.tracks.map((track) => ({
-			id: track.id,
-			name: track.name,
-			artists: track.artist,
-			coverImage: track.image,
-			previewUrl: track.preview_url,
-			deezerId: track.id,
-			deezerUrl: track.deezer_url,
-			album: track.album,
-			duration: track.duration,
-			})),
-			isComplete: data.data.is_complete,
-			totalProcessed: data.data.total_processed
-		};
-		}
+// 		if (data.status === 'success' && data.data.tracks) {
+// 		return {
+// 			tracks: data.data.tracks.map((track) => ({
+// 			id: track.id,
+// 			name: track.name,
+// 			artists: track.artist,
+// 			coverImage: track.image,
+// 			previewUrl: track.preview_url,
+// 			deezerId: track.id,
+// 			deezerUrl: track.deezer_url,
+// 			album: track.album,
+// 			duration: track.duration,
+// 			})),
+// 			isComplete: data.data.is_complete,
+// 			totalProcessed: data.data.total_processed
+// 		};
+// 		}
 		
-		return {
-		tracks: [],
-		isComplete: true,
-		totalProcessed: 0
-		};
-	} catch (error) {
-		console.error("Error getting track chunk:", error);
-		throw error;
-	}
-};
+// 		return {
+// 		tracks: [],
+// 		isComplete: true,
+// 		totalProcessed: 0
+// 		};
+// 	} catch (error) {
+// 		console.error("Error getting track chunk:", error);
+// 		throw error;
+// 	}
+// };
 
-export const loadAllChunks = async (onChunkReceived = () => {}) => {
-	try {
-		await startTrackChunking();
+// export const loadAllChunks = async (onChunkReceived = () => {}) => {
+// 	try {
+// 		await startTrackChunking();
 		
-		let allTracks = [];
-		let isComplete = false;
+// 		let allTracks = [];
+// 		let isComplete = false;
 
-		while (!isComplete) {
-		const chunkData = await getNextTrackChunk();
+// 		while (!isComplete) {
+// 		const chunkData = await getNextTrackChunk();
 		
-		if (chunkData.tracks && chunkData.tracks.length > 0) {
-			allTracks = [...allTracks, ...chunkData.tracks];
-			onChunkReceived({
-			tracks: chunkData.tracks,
-			totalLoaded: allTracks.length,
-			totalProcessed: chunkData.totalProcessed,
-			progress: chunkData.totalProcessed ? 
-				Math.round((allTracks.length / chunkData.totalProcessed) * 100) : 0
-			});
-		}
+// 		if (chunkData.tracks && chunkData.tracks.length > 0) {
+// 			allTracks = [...allTracks, ...chunkData.tracks];
+// 			onChunkReceived({
+// 			tracks: chunkData.tracks,
+// 			totalLoaded: allTracks.length,
+// 			totalProcessed: chunkData.totalProcessed,
+// 			progress: chunkData.totalProcessed ? 
+// 				Math.round((allTracks.length / chunkData.totalProcessed) * 100) : 0
+// 			});
+// 		}
 		
-		isComplete = chunkData.isComplete;
+// 		isComplete = chunkData.isComplete;
 		
-		if (!isComplete) {
-			await new Promise(resolve => setTimeout(resolve, 1000));
-		}
-		}
+// 		if (!isComplete) {
+// 			await new Promise(resolve => setTimeout(resolve, 1000));
+// 		}
+// 		}
 		
-		return allTracks;
-	} catch (error) {
-		console.error("Error loading all chunks:", error);
-		throw error;
-	}
+// 		return allTracks;
+// 	} catch (error) {
+// 		console.error("Error loading all chunks:", error);
+// 		throw error;
+// 	}
+// };
+export const useStreamedRecommendations = () => {
+  const [tracks, setTracks] = useState([]);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const seenTrackIds = useRef(new Set());
+  const isInitialBatch = useRef(true);
+  const reconnectAttempts = useRef(0);
+  const maxReconnectAttempts = 3;
+
+  useEffect(() => {
+    let eventSource;
+
+    const connect = () => {
+      console.log(`[Stream] Connecting to recommendations stream (attempt ${reconnectAttempts.current + 1}/${maxReconnectAttempts})`);
+      eventSource = new EventSource(`${API_BASE_URL}/api/recommendations-stream`, {
+        withCredentials: true,
+      });
+
+      eventSource.onopen = () => {
+        console.log("[Stream] Successfully connected to recommendations stream");
+        reconnectAttempts.current = 0;
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const batch = JSON.parse(event.data);
+          if (Array.isArray(batch)) {
+            console.log(`[Stream] Received batch of ${batch.length} tracks`);
+            
+            // Filter out tracks we've already seen
+            const newTracks = batch.filter(track => {
+              if (seenTrackIds.current.has(track.id)) {
+                console.log(`[Stream] Skipping duplicate track: ${track.name} by ${track.artist}`);
+                return false;
+              }
+              seenTrackIds.current.add(track.id);
+              console.log(`[Stream] New track: ${track.name} by ${track.artist}`);
+              return true;
+            });
+
+            if (newTracks.length > 0) {
+              const formattedTracks = newTracks.map(track => ({
+                id: track.id,
+                name: track.name,
+                artists: track.artist,
+                coverImage: track.image,
+                previewUrl: track.preview_url,
+              }));
+
+              if (isInitialBatch.current) {
+                console.log(`[Stream] Setting initial batch of ${formattedTracks.length} tracks`);
+                setTracks(formattedTracks);
+                isInitialBatch.current = false;
+                setIsLoading(false);
+              } else {
+                console.log(`[Stream] Adding ${formattedTracks.length} new tracks to existing queue`);
+                setTracks(prev => [...prev, ...formattedTracks]);
+              }
+            } else {
+              console.log("[Stream] No new tracks in this batch");
+            }
+          } else if (batch.error) {
+            console.error("[Stream] Error in recommendation stream:", batch.error);
+            setError(batch.error);
+            setIsLoading(false);
+          }
+        } catch (err) {
+          console.error("[Stream] Failed to parse track batch:", err);
+          setIsLoading(false);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error("[Stream] EventSource error:", err);
+        eventSource.close();
+        
+        if (reconnectAttempts.current < maxReconnectAttempts) {
+          reconnectAttempts.current += 1;
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 10000);
+          console.log(`[Stream] Attempting to reconnect in ${delay/1000} seconds... (${reconnectAttempts.current}/${maxReconnectAttempts})`);
+          setTimeout(connect, delay);
+        } else {
+          console.error("[Stream] Max reconnection attempts reached");
+          setError("Failed to connect to recommendations stream after multiple attempts");
+          setIsLoading(false);
+        }
+      };
+    };
+
+    connect();
+
+    return () => {
+      console.log("[Stream] Cleaning up stream connection");
+      if (eventSource) {
+        eventSource.close();
+      }
+      seenTrackIds.current.clear();
+      isInitialBatch.current = true;
+      reconnectAttempts.current = 0;
+    };
+  }, []);
+
+  return { tracks, error, isLoading };
 };
