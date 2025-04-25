@@ -1,3 +1,4 @@
+
 from dotenv import load_dotenv
 import os
 import base64
@@ -18,6 +19,7 @@ from spotipy.oauth2 import SpotifyOAuth
 import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
+import encodings
 
 # **IMPORTANT** please read the all NOTES
 # NOTE: Feel free to test your own Spotify playlist if you have one, within the fetch_current_user function.
@@ -354,14 +356,22 @@ class RecommendationManager:
         Enhanced method with more robust error handling and debugging
         """
         try:
+            # Optional: safely set agent_info if applicable
+            try:
+                agent_contact = getattr(self, 'agent_contact', '')  # Or replace with actual value
+                agent_telno = getattr(self, 'agent_telno', '')      # Or replace with actual value
+                self.agent_info = u' '.join((agent_contact, agent_telno)).encode('utf-8').strip()
+            except Exception as encoding_error:
+                print("Error encoding agent_info:", encoding_error)
+                self.agent_info = b''
+
             playlists = self.combinator.combining_playlist_and_track()
             if isinstance(playlists, dict):
                 print("Playlists Found:")
                 for name, tracks in playlists.items():
-                    print(f" 💽 {name}: {len(tracks)} tracks")
+                    print(f" 💽 {name.encode('ascii', errors='ignore').decode('utf-8')}: {len(tracks)} tracks")
             else:
-                print("Playlist retrieval returned non-dictionary type:",
-                      type(playlists))
+                print("Playlist retrieval returned non-dictionary type:", type(playlists))
                 return None
 
             prompt = (
@@ -410,7 +420,7 @@ class RecommendationManager:
             )
             full_response = chat_completion.choices[0].message.content
             print("\n------------ RAW AI RESPONSE ------------")
-            print(full_response)
+            print(full_response.encode('utf-8', errors='ignore').decode('utf-8'))
             print("------------ END RAW RESPONSE -----------\n")
             try:
                 parsed_response = json.loads(full_response)
@@ -425,6 +435,7 @@ class RecommendationManager:
             print("UNEXPECTED ERROR IN RECOMMENDATION GENERATION:")
             traceback.print_exc()
             return None
+
 
     def format_recommendations(self):
         """
