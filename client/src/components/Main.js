@@ -28,6 +28,13 @@ const MainContent = ({
 		return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 	};
 
+	const formatName = (name, maxLength=20) => {
+		if(name.length <= maxLength) {
+			return name;
+		}
+		return name.slice(0, maxLength) + "...";
+	}
+
 	return (
 		<main className={`main-content ${isSidebarCollapsed ? "expanded" : ""}`}>
 			<section className={`welcome-section ${isSwiping ? "hidden" : ""}`}>
@@ -81,7 +88,7 @@ const MainContent = ({
 				>
 					<div className="song-info">
 						<div className="song-details">
-							<h2 className="song-title">{currentSong.name}</h2>
+							<h2 className="song-title">{formatName(currentSong.name)}</h2>
 							<p className="artist-name">{currentSong.artists}</p>
 						</div>
 
