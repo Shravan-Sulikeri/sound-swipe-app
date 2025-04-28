@@ -7,6 +7,8 @@ import CreatePlaylistModal from "../components/CreateModal";
 import DeletePlaylistModal from "../components/DeleteModal";
 import SoundwaveLoader from "../components/SoundwaveLoader";
 import NoSongsScreen from "../components/NoSongs";
+import axios from "axios";
+
 // import ChunkingProgress from "../components/ChunkingLoading";
 import {
 	getSampleTracks,
@@ -33,6 +35,7 @@ const Home = () => {
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 	const [cardTransform, setCardTransform] = useState({ x: 0, y: 0, rotate: 0 });
 	const [isLoading, setIsLoading] = useState(false);
+	const [userName, setUserName] = useState("Guest");
 
 	// Modal states
 	const [showCreateModal, setShowCreateModal] = useState(false);
@@ -121,6 +124,22 @@ const Home = () => {
 						),
 					loadPlaylists(), // Handles both cache and fresh data
 				]);
+
+				// Fetch the logged-in user's profile info
+				try {
+					const res = await fetch(`${API_BASE_URL}/api/me`, {
+						credentials: "include",
+					});
+					if (res.ok) {
+						const userData = await res.json();
+						setUserName(userData.display_name || "Guest");
+					} else {
+						console.error("Failed to fetch user info");
+					}
+				} catch (error) {
+					console.error("Error fetching user info:", error);
+				}
+
 			} catch (error) {
 				console.error("Error loading data:", error);
 			} finally {
@@ -650,7 +669,32 @@ const Home = () => {
 	}
 
 	return (
+		
+		
 		<div className="home-container">
+			{isSwiping && isSidebarCollapsed && (
+			<div style={{
+				position: 'absolute',
+				top: '50px',
+				left: '50%',
+				transform: 'translateX(-50%)',
+				textAlign: 'center',
+				fontSize: '24px',
+				fontWeight: 'bold',
+				color: '#fff', // White text
+				backgroundColor: 'rgba(0, 0, 0, 0.3)', // Subtle dark background, similar to Spotify's style
+				padding: '10px 20px', // Spacing for readability
+				borderRadius: '50px', // Rounded shape without the sharp corners
+				zIndex: 1000,
+			}}>
+				<h1 style={{ margin: 0, fontFamily: 'Helvetica, Arial, sans-serif' }}>Hello, {userName}!</h1>
+			</div>
+			)}
+
+
+
+
+
 			{/* Sidebar Toggle */}
 			<button
 				className={`sidebar-toggle ${isSidebarCollapsed ? "collapsed" : ""}`}
