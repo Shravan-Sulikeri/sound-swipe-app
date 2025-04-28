@@ -664,29 +664,48 @@ const Home = () => {
 				handleDeleteSong={handleDeleteSong}
 				onRefresh={loadPlaylists}
 			/>
+	<div className="main-content">
+  <div className="card-and-nextup">
 
-			{/* Main content */}
-			<MainContent
-				isSwiping={isSwiping}
-				isSidebarCollapsed={isSidebarCollapsed}
-				currentSong={currentSong}
-				isDragging={isDragging}
-				cardTransform={cardTransform}
-				activePlaylist={activePlaylist}
-				playlists={optimisticPlaylists}
-				progress={progress}
-				currentTime={currentTime}
-				duration={duration}
-				isPlaying={isPlaying}
-				handleStartSwiping={() => setIsSwiping(true)}
-				handleDragStart={handleDragStart}
-				handleDragMove={handleDragMove}
-				handleDragEnd={handleDragEnd}
-				handlePlayPause={handlePlayPause}
-				handleProgressClick={handleProgressClick}
-				handleSwipe={handleSwipe}
-				cardRef={cardRef}
-			/>
+    {/* Swipe Card */}
+    <MainContent
+      isSwiping={isSwiping}
+      isSidebarCollapsed={isSidebarCollapsed}
+      currentSong={currentSong}
+      isDragging={isDragging}
+      cardTransform={cardTransform}
+      activePlaylist={activePlaylist}
+      playlists={optimisticPlaylists}
+      progress={progress}
+      currentTime={currentTime}
+      duration={duration}
+      isPlaying={isPlaying}
+      handleStartSwiping={() => setIsSwiping(true)}
+      handleDragStart={handleDragStart}
+      handleDragMove={handleDragMove}
+      handleDragEnd={handleDragEnd}
+      handlePlayPause={handlePlayPause}
+      handleProgressClick={handleProgressClick}
+      handleSwipe={handleSwipe}
+      cardRef={cardRef}
+    />
+
+    {/* Next Up */}
+    {isSwiping && songQueue.length > 0 && (
+      <div className="next-song-preview-side">
+        <h4>Next Up</h4>
+        <div className="mini-song-side">
+          <img
+            src={songQueue[0].coverImage || "https://via.placeholder.com/80"}
+            alt={songQueue[0].name}
+          />
+          <p>{songQueue[0].name}</p>
+        </div>
+      </div>
+    )}
+
+  </div>
+</div>
 
 			{/* Exit button */}
 			{isSwiping ? (

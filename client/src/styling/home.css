@@ -1150,3 +1150,43 @@
 		opacity: 1;
 	}
 }
+
+
+.card-and-nextup {
+	display: flex;
+	justify-content: center; /* Align horizontally */
+	align-items: center; /* Align vertically */
+	gap: 30px;
+	margin-top: 40px;
+	width: 100%;
+	position: relative;
+}
+
+.song-card {
+	flex-shrink: 0; 
+}
+
+.next-song-preview-side {
+	background: #1e1e1e;
+	padding: 15px;
+	border-radius: 10px;
+	text-align: center;
+	width: 140px;
+	box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+	align-self: center;
+	margin-right: 3%;
+
+}
+
+.mini-song-side img {
+	width: 100%;
+	height: auto;
+	border-radius: 8px;
+	margin-bottom: 8px;
+}
+
+.mini-song-side p {
+	margin: 0;
+	font-size: 14px;
+	color: white;
+}
