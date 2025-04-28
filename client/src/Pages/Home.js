@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import useAudioControls from "../hooks/useAudioControls";
 import "../styling/home.css";
 import Sidebar from "../components/Sidebar";
@@ -7,9 +7,6 @@ import CreatePlaylistModal from "../components/CreateModal";
 import DeletePlaylistModal from "../components/DeleteModal";
 import SoundwaveLoader from "../components/SoundwaveLoader";
 import NoSongsScreen from "../components/NoSongs";
-import axios from "axios";
-
-// import ChunkingProgress from "../components/ChunkingLoading";
 import {
 	getSampleTracks,
 	getRecommendations,
@@ -21,21 +18,29 @@ import {
 	addTrack,
 	removeTrack,
 	searchSpotifyTrack,
-	loadAllChunks,
+	useStreamedRecommendations,
 } from "../services/api";
 
 const Home = () => {
 	const [isSwiping, setIsSwiping] = useState(false);
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 	const [playlists, setPlaylists] = useState([]);
-	const [currentSong, setCurrentSong] = useState(null);
-	const [songQueue, setSongQueue] = useState([]);
 	const [likedSongs, setLikedSongs] = useState([]);
 	const [isDragging, setIsDragging] = useState(false);
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 	const [cardTransform, setCardTransform] = useState({ x: 0, y: 0, rotate: 0 });
 	const [isLoading, setIsLoading] = useState(false);
 	const [userName, setUserName] = useState("Guest");
+
+	// Enhanced song queue implementation
+	const [processedSongIds, setProcessedSongIds] = useState(new Set()); // Track songs we've already shown
+	const [songQueue, setSongQueue] = useState([]); // Keep as array for simplicity
+	const [currentSong, setCurrentSong] = useState(null);
+	
+	// Enhanced batch tracking
+	const [batchRegistry, setBatchRegistry] = useState({}); // Track which songs belong to which batch
+	const [currentBatchId, setCurrentBatchId] = useState(null); // Track which batch we're currently processing
+	const [songPosition, setSongPosition] = useState({ batch: null, position: 0, total: 0 }); // Track position within batch
 
 	// Modal states
 	const [showCreateModal, setShowCreateModal] = useState(false);
@@ -47,6 +52,114 @@ const Home = () => {
 
 	const audioRef = useRef(null);
 	const cardRef = useRef(null);
+
+	// Use the streamed recommendations hook
+	const { tracks: streamedTracks, error: streamError, isLoading: isStreamLoading } = useStreamedRecommendations();
+
+	// Process new tracks arriving from stream
+	// This focuses on the key part that needs fixing
+	// Process new tracks arriving from stream
+	// Process new tracks arriving from stream
+useEffect(() => {
+  if (streamedTracks.length > 0) {
+    console.log(`[Home] Received ${streamedTracks.length} new tracks`);
+    
+    // Create a batch ID to track this group of songs
+    const batchId = `batch-${Date.now()}`;
+    
+    // Create a set of all song IDs we need to exclude:
+    // 1. Already processed songs
+    // 2. Current song (if any)
+    // 3. Songs already in the queue
+    const excludedSongIds = new Set(processedSongIds);
+    
+    // Add current song ID to excluded set if it exists
+    if (currentSong?.id) {
+      excludedSongIds.add(currentSong.id);
+    }
+    
+    // Add all queue song IDs to excluded set
+    songQueue.forEach(queuedSong => {
+      if (queuedSong?.id) {
+        excludedSongIds.add(queuedSong.id);
+      }
+    });
+    
+    // Filter out any songs we've already processed or queued (by Spotify ID)
+    const newSongs = streamedTracks.filter(track => 
+      track.id && !excludedSongIds.has(track.id)
+    );
+    
+    // Skip if no new songs after filtering
+    if (newSongs.length === 0) {
+      console.log("[Home] No new unique tracks after filtering");
+      return;
+    }
+    
+    console.log(`[Home] ${newSongs.length} new unique tracks after filtering`);
+    
+    // Register this batch with ONLY the new songs
+    setBatchRegistry(prev => ({
+      ...prev,
+      [batchId]: {
+        timestamp: Date.now(),
+        songIds: newSongs.map(song => song.id),
+        totalSongs: newSongs.length,
+        processed: 0,
+        songs: newSongs // Store the actual songs in the batch
+      }
+    }));
+    
+    // If we don't have a current song, set it from the new batch
+    if (!currentSong && newSongs.length > 0) {
+      console.log("[Home] Setting first song from new batch");
+      setCurrentSong(newSongs[0]);
+      setCurrentBatchId(batchId);
+      setSongPosition({ batch: batchId, position: 1, total: newSongs.length });
+      
+      // Mark this song as processed
+      setProcessedSongIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(newSongs[0].id);
+        return newSet;
+      });
+      
+      // Add the rest to the queue
+      if (newSongs.length > 1) {
+        setSongQueue(prev => [...prev, ...newSongs.slice(1)]);
+      }
+      
+      // Update batch processed count
+      setBatchRegistry(prev => ({
+        ...prev,
+        [batchId]: {
+          ...prev[batchId],
+          processed: 1
+        }
+      }));
+      
+      // Handle artists display safely, checking if it's an array
+      const artistInfo = Array.isArray(newSongs[0].artists) 
+        ? newSongs[0].artists.join(', ') 
+        : typeof newSongs[0].artists === 'string' 
+          ? newSongs[0].artists 
+          : 'Unknown Artist';
+          
+      // Log current song position
+      console.log(`[Song Position] Now playing song 1/${newSongs.length} from batch ${batchId}`);
+      console.log(`[Song Info] "${newSongs[0].name}" by ${artistInfo}`);
+    } else if (newSongs.length > 0) {
+      // Just add all new songs to the queue
+      setSongQueue(prev => [...prev, ...newSongs]);
+    }
+  }
+}, [currentSong, processedSongIds, songQueue, streamedTracks]);
+	// Handle stream errors
+	useEffect(() => {
+		if (streamError) {
+			console.error("Error in recommendation stream:", streamError);
+		}
+	}, [streamError]);
 
 	// audio controls
 	const {
@@ -103,43 +216,11 @@ const Home = () => {
 			console.error("Playlist refresh failed:", error);
 		}
 	};
-
-	// Initialize songs when component mounts
 	useEffect(() => {
 		const initializeData = async () => {
 			setIsLoading(true);
 			try {
-				await Promise.all([
-					getSampleTracks(20)
-						.then((songs) => {
-							if (songs?.length > 0) {
-								setCurrentSong(songs[0]);
-								setSongQueue(songs.slice(1));
-							} else {
-								console.error("No songs received from the API");
-							}
-						})
-						.catch((error) =>
-							console.error("Error loading initial songs:", error)
-						),
-					loadPlaylists(), // Handles both cache and fresh data
-				]);
-
-				// Fetch the logged-in user's profile info
-				try {
-					const res = await fetch(`${API_BASE_URL}/api/me`, {
-						credentials: "include",
-					});
-					if (res.ok) {
-						const userData = await res.json();
-						setUserName(userData.display_name || "Guest");
-					} else {
-						console.error("Failed to fetch user info");
-					}
-				} catch (error) {
-					console.error("Error fetching user info:", error);
-				}
-
+        await loadPlaylist();
 			} catch (error) {
 				console.error("Error loading data:", error);
 			} finally {
@@ -167,7 +248,7 @@ const Home = () => {
 		if (Object.keys(optimisticData).length > 0) {
 			setOptimisticPlaylistData((prev) => ({ ...prev, ...optimisticData }));
 		}
-	}, [playlists]);
+	}, [optimisticPlaylistData, playlists]);
 
 	// Helper function to get optimistic song count
 	const getOptimisticSongCount = (playlistId) => {
@@ -476,18 +557,84 @@ const Home = () => {
 		setIsSidebarCollapsed(!isSidebarCollapsed);
 	};
 
-	const handleSwipe = async (direction) => {
-		const card = cardRef.current;
-		if (!card || !currentSong) return;
+	// Debug function to check queue state
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const debugQueueState = useCallback(() => {
+		console.log(`Current song: ${currentSong?.name || 'None'}`);
+		console.log(`Queue length: ${songQueue.length}`);
+		console.log(`Processed songs: ${processedSongIds.size}`);
+		console.log(`Current batch ID: ${currentBatchId}`);
+		console.log(`Current song position: ${songPosition.position}/${songPosition.total} in batch ${songPosition.batch}`);
+		console.log(`Batch registry:`, batchRegistry);
+		
+		// Check if we need to request more songs
+		if (songQueue.length < 3) {
+			console.log("[Debug] Queue running low, consider fetching more songs");
+		}
+		
+		// Check if the current batch is nearly complete
+		if (currentBatchId && batchRegistry[currentBatchId]) {
+			const currentBatch = batchRegistry[currentBatchId];
+			const remaining = currentBatch.totalSongs - currentBatch.processed;
+			console.log(`[Debug] Current batch has ${remaining} songs remaining`);
+		}
+	});
 
-		card.classList.add(`swiped-${direction}`);
-		// Song is liked
-		if (direction === "right") {
-			// Add to liked songs
-			setLikedSongs((prev) => [...prev, currentSong]);
+	// Helper function to log current song info
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const logSongInfo = useCallback((song, action) => {
+		if (!song) return;
+		
+		const artistInfo = Array.isArray(song.artists) 
+			? song.artists.join(', ') 
+			: song.artists;
+			
+		console.log(`[Song ${action}] "${song.name}" by ${artistInfo}`);
+		
+		if (currentBatchId && batchRegistry[currentBatchId]) {
+			console.log(`[Song Position] ${songPosition.position}/${songPosition.total} in batch ${songPosition.batch}`);
+		}
+	});
 
-			// Add to active playlist if one is selected
-			if (activePlaylist) {
+	// Enhanced swipe handler with song tracking and batch management
+		const handleSwipe = async (direction) => {
+	const card = cardRef.current;
+	if (!card || !currentSong) return;
+
+	card.classList.add(`swiped-${direction}`);
+	
+	// Log current song action
+	logSongInfo(currentSong, direction === "right" ? "LIKED" : "SKIPPED");
+	
+	// If we have a current batch, update its processed count
+	if (currentBatchId && batchRegistry[currentBatchId]) {
+		setBatchRegistry(prev => {
+		const updatedRegistry = {...prev};
+		updatedRegistry[currentBatchId] = {
+			...updatedRegistry[currentBatchId],
+			processed: updatedRegistry[currentBatchId].processed + 1
+		};
+		
+		return updatedRegistry;
+		});
+	}
+	
+	// Mark current song as processed
+	if (currentSong.id) {
+		setProcessedSongIds(prev => {
+		const newSet = new Set(prev);
+		newSet.add(currentSong.id);
+		return newSet;
+		});
+	}
+	
+	// Song is liked
+	if (direction === "right") {
+		// Add to liked songs
+		setLikedSongs((prev) => [...prev, currentSong]);
+
+		// Add to active playlist if one is selected
+		if (activePlaylist) {
 				// Keep track of the current song for rollback if needed
 				const songToAdd = currentSong;
 
@@ -573,51 +720,79 @@ const Home = () => {
 					});
 				}
 			}
-		}
-		controlAudio("stop");
+	}
+	controlAudio("stop");
 
-		// Get next song from queue
+	// Move to next song in the queue
+	if (songQueue.length > 0) {
+		console.log("[Home] Moving to next song");
 		const nextSong = songQueue[0];
-		if (nextSong) {
-			setCurrentSong(nextSong);
-			setSongQueue((prev) => prev.slice(1));
-			// Autoplay new song
-			setTimeout(() => {
-				controlAudio("play", { resetTime: true });
-			}, 300);
-		} else {
-			// If queue is empty, get new recommendations
-			setIsLoading(true);
-			try {
-				const newRecommendations = await getRecommendations(
-					likedSongs.map((song) => song.id),
-					20
-				);
-				if (newRecommendations && newRecommendations.length > 0) {
-					setCurrentSong(newRecommendations[0]);
-					setSongQueue(newRecommendations.slice(1));
-					// Autoplay new song
-					setTimeout(() => {
-						controlAudio("play");
-					}, 300);
-				} else {
-					setCurrentSong(null);
-					setSongQueue([]);
-				}
-			} catch (error) {
-				console.error("Error getting recommendations:", error);
-			} finally {
-				setIsLoading(false);
-			}
+		setCurrentSong(nextSong);
+		setSongQueue((prev) => prev.slice(1));
+		
+		// Find which batch this next song belongs to
+		let foundBatchId = null;
+		let nextPosition = 1;
+		let totalSongs = 0;
+		
+		// Search through all batches to find which one contains this song
+		Object.entries(batchRegistry).forEach(([bid, batchData]) => {
+		if (batchData.songIds.includes(nextSong.id)) {
+			foundBatchId = bid;
+			// Calculate position in batch (add 1 because arrays are 0-indexed)
+			const batchSongIndex = batchData.songIds.indexOf(nextSong.id);
+			nextPosition = batchSongIndex + 1;
+			totalSongs = batchData.totalSongs;
 		}
-
-		// Reset card position after animation
+		});
+		
+		if (foundBatchId) {
+		setCurrentBatchId(foundBatchId);
+		setSongPosition({
+			batch: foundBatchId,
+			position: nextPosition,
+			total: totalSongs
+		});
+		
+		console.log(`[Home] Song belongs to batch: ${foundBatchId}`);
+		console.log(`[Song Position] Now playing song ${nextPosition}/${totalSongs} from batch ${foundBatchId}`);
+		} else {
+		console.warn("[Home] Could not determine batch for next song");
+		// If we can't determine the batch, just use the existing batch info
+		// This is a fallback in case something goes wrong
+		setSongPosition(prev => ({
+			...prev,
+			position: prev.position + 1
+		}));
+		}
+		
+		// Log the next song info
 		setTimeout(() => {
-			card.classList.remove(`swiped-${direction}`);
-			setCardTransform({ x: 0, y: 0, rotate: 0 });
+		logSongInfo(nextSong, "NOW PLAYING");
 		}, 300);
-	};
+		
+		// Autoplay new song
+		setTimeout(() => {
+		controlAudio("play", { resetTime: true });
+		}, 300);
+	} else {
+		console.log("[Home] Queue is empty, waiting for new tracks");
+		setCurrentSong(null);
+		setCurrentBatchId(null);
+		setSongPosition({ batch: null, position: 0, total: 0 });
+		
+		// Debug when we run out of songs
+		setTimeout(() => {
+		debugQueueState();
+		}, 0);
+	}
 
+	// Reset card position after animation
+	setTimeout(() => {
+		card.classList.remove(`swiped-${direction}`);
+		setCardTransform({ x: 0, y: 0, rotate: 0 });
+	}, 300);
+	};
 	const handleDragStart = (e) => {
 		setIsDragging(true);
 		setDragStart({
@@ -660,7 +835,22 @@ const Home = () => {
 		}
 	};
 
-	if (isLoading) {
+	// Monitor queue length and trigger debugging when it runs low
+	useEffect(() => {
+		if (songQueue.length <= 2) {
+			console.log("[Home] Queue running low, debugging state");
+			debugQueueState();
+		}
+	}, [debugQueueState, songQueue.length]);
+
+	// Log current song when it changes
+	useEffect(() => {
+		if (currentSong) {
+			logSongInfo(currentSong, "CURRENT");
+		}
+	}, [currentSong, logSongInfo]);
+
+	if (isStreamLoading) {
 		return <SoundwaveLoader />;
 	}
 
@@ -703,7 +893,7 @@ const Home = () => {
 				{isSidebarCollapsed ? "☰" : "←"}
 			</button>
 
-			{/* Sidebar - Now using playlists with optimistic data */}
+			{/* Sidebar */}
 			<Sidebar
 				isLoadingSongs={isLoadingSongs}
 				isSidebarCollapsed={isSidebarCollapsed}
@@ -791,17 +981,10 @@ const Home = () => {
 
 			<audio
 				ref={audioRef}
-				src={currentSong.previewUrl}
+				src={currentSong?.previewUrl}
 				onTimeUpdate={handleTimeUpdate}
 				onLoadedMetadata={handleLoadedMetadata}
 			/>
-
-			{/* <ChunkingProgress
-				isLoading={chunkingProgress.isLoading}
-				progress={chunkingProgress.progress}
-				totalLoaded={chunkingProgress.totalLoaded}
-				totalProcessed={chunkingProgress.totalProcessed}
-			/> */}
 		</div>
 	);
 };
