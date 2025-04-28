@@ -164,12 +164,20 @@ const Home = () => {
 	};
 
 	// Helper function to get optimistic cover image
+	// Helper function to get optimistic cover image
 	const getOptimisticCoverImage = (playlistId) => {
-		return optimisticPlaylistData[playlistId]?.coverImage !== undefined
-			? optimisticPlaylistData[playlistId].coverImage
-			: playlists.find((p) => p.id === playlistId)?.coverImage ||
-					"https://via.placeholder.com/100";
-	};
+	// If no songs in the playlist, use a default placeholder image
+	if (optimisticPlaylistData[playlistId]?.songs?.length === 0) {
+	  return "/emptyPlaylist.png"; // Replace this with the path to your placeholder image
+	}
+  
+	// Otherwise return the cover image from the playlist data
+	return optimisticPlaylistData[playlistId]?.coverImage !== undefined
+	  ? optimisticPlaylistData[playlistId].coverImage
+	  : playlists.find((p) => p.id === playlistId)?.coverImage ||
+	  "https://via.placeholder.com/100";
+  };
+  
 
 	// Update playlists with optimistic data for components
 	const getOptimisticPlaylists = () => {
