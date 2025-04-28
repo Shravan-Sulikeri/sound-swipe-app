@@ -30,6 +30,7 @@ const Home = () => {
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 	const [cardTransform, setCardTransform] = useState({ x: 0, y: 0, rotate: 0 });
 	const [isLoading, setIsLoading] = useState(false);
+	const [userName, setUserName] = useState("Guest");
 
 	// Enhanced song queue implementation
 	const [processedSongIds, setProcessedSongIds] = useState(new Set()); // Track songs we've already shown
@@ -182,14 +183,14 @@ useEffect(() => {
 		if (cached) {
 			const parsedCache = JSON.parse(cached);
 			setPlaylists(parsedCache);
-			
+
 			// Initialize optimistic data from cache
 			const initialOptimisticData = {};
-			parsedCache.forEach(playlist => {
+			parsedCache.forEach((playlist) => {
 				initialOptimisticData[playlist.id] = {
 					songCount: playlist.songCount,
 					coverImage: playlist.coverImage,
-					songs: playlist.songs || []
+					songs: playlist.songs || [],
 				};
 			});
 			setOptimisticPlaylistData(initialOptimisticData);
@@ -199,29 +200,27 @@ useEffect(() => {
 		try {
 			const fresh = await getPlaylists();
 			setPlaylists(fresh);
-			
 			// Update optimistic data with fresh data
 			const freshOptimisticData = {};
-			fresh.forEach(playlist => {
+			fresh.forEach((playlist) => {
 				freshOptimisticData[playlist.id] = {
 					songCount: playlist.songCount,
 					coverImage: playlist.coverImage,
-					songs: playlist.songs || []
+					songs: playlist.songs || [],
 				};
 			});
 			setOptimisticPlaylistData(freshOptimisticData);
-			
+
 			localStorage.setItem("cachedPlaylists", JSON.stringify(fresh));
 		} catch (error) {
 			console.error("Playlist refresh failed:", error);
 		}
 	};
-
 	useEffect(() => {
 		const initializeData = async () => {
 			setIsLoading(true);
 			try {
-				await loadPlaylists();
+        await loadPlaylist();
 			} catch (error) {
 				console.error("Error loading data:", error);
 			} finally {
@@ -234,20 +233,20 @@ useEffect(() => {
 	// Initialize optimistic data when playlists change
 	useEffect(() => {
 		const optimisticData = {};
-		playlists.forEach(playlist => {
+		playlists.forEach((playlist) => {
 			// Only initialize if not already tracked
 			if (!optimisticPlaylistData[playlist.id]) {
 				optimisticData[playlist.id] = {
 					songCount: playlist.songCount,
 					coverImage: playlist.coverImage,
-					songs: playlist.songs || []
+					songs: playlist.songs || [],
 				};
 			}
 		});
-		
+
 		// Merge with existing data
 		if (Object.keys(optimisticData).length > 0) {
-			setOptimisticPlaylistData(prev => ({...prev, ...optimisticData}));
+			setOptimisticPlaylistData((prev) => ({ ...prev, ...optimisticData }));
 		}
 	}, [optimisticPlaylistData, playlists]);
 
@@ -257,26 +256,35 @@ useEffect(() => {
 		if (activePlaylist === playlistId) {
 			return playlistSongs.length;
 		}
-		
+
 		// Otherwise use the tracking object or fall back to the playlist data
-		return optimisticPlaylistData[playlistId]?.songCount !== undefined 
-			? optimisticPlaylistData[playlistId].songCount 
-			: playlists.find(p => p.id === playlistId)?.songCount || 0;
+		return optimisticPlaylistData[playlistId]?.songCount !== undefined
+			? optimisticPlaylistData[playlistId].songCount
+			: playlists.find((p) => p.id === playlistId)?.songCount || 0;
 	};
 
 	// Helper function to get optimistic cover image
+	// Helper function to get optimistic cover image
 	const getOptimisticCoverImage = (playlistId) => {
-		return optimisticPlaylistData[playlistId]?.coverImage !== undefined 
-			? optimisticPlaylistData[playlistId].coverImage 
-			: playlists.find(p => p.id === playlistId)?.coverImage || "https://via.placeholder.com/100";
-	};
+	// If no songs in the playlist, use a default placeholder image
+	if (optimisticPlaylistData[playlistId]?.songs?.length === 0) {
+	  return "/emptyPlaylist.png"; // Replace this with the path to your placeholder image
+	}
+  
+	// Otherwise return the cover image from the playlist data
+	return optimisticPlaylistData[playlistId]?.coverImage !== undefined
+	  ? optimisticPlaylistData[playlistId].coverImage
+	  : playlists.find((p) => p.id === playlistId)?.coverImage ||
+	  "https://via.placeholder.com/100";
+  };
+  
 
 	// Update playlists with optimistic data for components
 	const getOptimisticPlaylists = () => {
-		return playlists.map(playlist => ({
+		return playlists.map((playlist) => ({
 			...playlist,
 			songCount: getOptimisticSongCount(playlist.id),
-			coverImage: getOptimisticCoverImage(playlist.id)
+			coverImage: getOptimisticCoverImage(playlist.id),
 		}));
 	};
 
@@ -290,11 +298,12 @@ useEffect(() => {
 	const handleCreatePlaylist = async (playlistName) => {
 		try {
 			// Default cover image
-			const defaultCoverImage = likedSongs[0]?.coverImage || "https://via.placeholder.com/100";
-			
+			const defaultCoverImage =
+				likedSongs[0]?.coverImage || "https://via.placeholder.com/100";
+
 			// Create an optimistic playlist ID (temporary)
 			const temporaryId = `temp-${Date.now()}`;
-			
+
 			// Add optimistic playlist to UI immediately
 			const optimisticPlaylist = {
 				id: temporaryId,
@@ -303,18 +312,18 @@ useEffect(() => {
 				songCount: 0,
 				coverImage: defaultCoverImage,
 			};
-			
-			setPlaylists(prev => [...prev, optimisticPlaylist]);
+
+			setPlaylists((prev) => [...prev, optimisticPlaylist]);
 			setActivePlaylist(temporaryId);
-			setOptimisticPlaylistData(prev => ({
+			setOptimisticPlaylistData((prev) => ({
 				...prev,
 				[temporaryId]: {
 					songCount: 0,
 					coverImage: defaultCoverImage,
-					songs: []
-				}
+					songs: [],
+				},
 			}));
-			
+
 			// Actually create the playlist in the database
 			const playlistData = await createPlaylist(playlistName);
 
@@ -323,21 +332,23 @@ useEffect(() => {
 			}
 
 			// Replace temporary playlist with real one from server
-			setPlaylists(prev => 
-				prev.map(p => p.id === temporaryId ? 
-					{
-						...p,
-						id: playlistData.id
-					} : p
+			setPlaylists((prev) =>
+				prev.map((p) =>
+					p.id === temporaryId
+						? {
+								...p,
+								id: playlistData.id,
+						  }
+						: p
 				)
 			);
-			
+
 			// Update active playlist reference
 			setActivePlaylist(playlistData.id);
-			
+
 			// Update optimistic data
-			setOptimisticPlaylistData(prev => {
-				const newData = {...prev};
+			setOptimisticPlaylistData((prev) => {
+				const newData = { ...prev };
 				// Transfer data from temp ID to real ID
 				newData[playlistData.id] = newData[temporaryId];
 				// Remove temp ID
@@ -346,18 +357,20 @@ useEffect(() => {
 			});
 
 			setShowCreateModal(false);
+
+			// Simple success feedback
 			console.log("Playlist created successfully:", playlistData);
 		} catch (error) {
 			console.error("Playlist creation error:", error);
 
 			// Remove optimistic playlist on error
 			const temporaryId = `temp-${Date.now()}`;
-			setPlaylists(prev => prev.filter(p => p.id !== temporaryId));
+			setPlaylists((prev) => prev.filter((p) => p.id !== temporaryId));
 			setActivePlaylist(null);
-			
+
 			let errorMessage = "Failed to create playlist";
 			alert(errorMessage);
-			
+
 			// Reopen modal if error occurred
 			setShowCreateModal(true);
 		}
@@ -388,15 +401,15 @@ useEffect(() => {
 			// Then fetch from server
 			const songs = await getSongsFromPlaylist(playlistId);
 			setPlaylistSongs(songs);
-			
+
 			// Update optimistic data with actual value
-			setOptimisticPlaylistData(prev => ({
+			setOptimisticPlaylistData((prev) => ({
 				...prev,
 				[playlistId]: {
 					...prev[playlistId],
 					songCount: songs.length,
-					songs: songs
-				}
+					songs: songs,
+				},
 			}));
 		} catch (error) {
 			console.error("Error handling playlist selection:", error);
@@ -412,38 +425,38 @@ useEffect(() => {
 
 	const handleDeletePlaylist = async (playlistId) => {
 		// Optimistically remove from UI first
-		const playlistToRemove = playlists.find(p => p.id === playlistId);
-		
-		setPlaylists(prev => prev.filter(p => p.id !== playlistId));
+		const playlistToRemove = playlists.find((p) => p.id === playlistId);
+
+		setPlaylists((prev) => prev.filter((p) => p.id !== playlistId));
 		if (activePlaylist === playlistId) {
 			setActivePlaylist(null);
 			setPlaylistSongs([]);
 		}
-		
+
 		try {
 			await deletePlaylist(playlistId);
-			
+
 			// Remove from optimistic data
-			setOptimisticPlaylistData(prev => {
-				const newData = {...prev};
+			setOptimisticPlaylistData((prev) => {
+				const newData = { ...prev };
 				delete newData[playlistId];
 				return newData;
 			});
-			
+
 			console.log(`Playlist ${playlistToDelete} deleted successfully`);
 		} catch (error) {
 			console.error("Deletion failed:", error);
-			
+
 			// Restore the playlist if deletion fails
 			if (playlistToRemove) {
-				setPlaylists(prev => [...prev, playlistToRemove]);
-				setOptimisticPlaylistData(prev => ({
+				setPlaylists((prev) => [...prev, playlistToRemove]);
+				setOptimisticPlaylistData((prev) => ({
 					...prev,
 					[playlistId]: {
 						songCount: playlistToRemove.songCount,
 						coverImage: playlistToRemove.coverImage,
-						songs: playlistToRemove.songs || []
-					}
+						songs: playlistToRemove.songs || [],
+					},
 				}));
 			}
 		}
@@ -469,29 +482,29 @@ useEffect(() => {
 			...playlistSongs.slice(0, songIndex),
 			...playlistSongs.slice(songIndex + 1),
 		];
-		
+
 		setPlaylistSongs(updatedSongs);
-		
+
 		// Update optimistic data
-		setOptimisticPlaylistData(prev => {
+		setOptimisticPlaylistData((prev) => {
 			const currentData = prev[playlistId] || {};
 			const newCount = Math.max(0, (currentData.songCount || 0) - 1);
-			
+
 			// Determine new cover image - if we removed the first song and there are other songs,
 			// use the new first song's cover image
 			let newCoverImage = currentData.coverImage;
 			if (songIndex === 0 && updatedSongs.length > 0) {
 				newCoverImage = updatedSongs[0].coverImage;
 			}
-			
+
 			return {
 				...prev,
 				[playlistId]: {
 					...currentData,
 					songCount: newCount,
 					coverImage: newCoverImage,
-					songs: updatedSongs
-				}
+					songs: updatedSongs,
+				},
 			};
 		});
 
@@ -502,20 +515,22 @@ useEffect(() => {
 			if (!result.success) {
 				throw new Error(result.error || "Failed to remove track");
 			}
-			
-			console.log(`Track ${songToRemove.name} removed from playlist successfully`);
+
+			console.log(
+				`Track ${songToRemove.name} removed from playlist successfully`
+			);
 		} catch (error) {
 			console.error("Error removing track from playlist:", error);
-			
+
 			// Rollback optimistic update on error
-			setPlaylistSongs(prev => [
+			setPlaylistSongs((prev) => [
 				...prev.slice(0, songIndex),
 				songToRemove,
-				...prev.slice(songIndex)
+				...prev.slice(songIndex),
 			]);
-			
+
 			// Restore optimistic data
-			setOptimisticPlaylistData(prev => {
+			setOptimisticPlaylistData((prev) => {
 				const currentData = prev[playlistId] || {};
 				return {
 					...prev,
@@ -525,9 +540,9 @@ useEffect(() => {
 						songs: [
 							...playlistSongs.slice(0, songIndex),
 							songToRemove,
-							...playlistSongs.slice(songIndex)
-						]
-					}
+							...playlistSongs.slice(songIndex),
+						],
+					},
 				};
 			});
 		}
@@ -844,7 +859,32 @@ useEffect(() => {
 	}
 
 	return (
+		
+		
 		<div className="home-container">
+			{isSwiping && isSidebarCollapsed && (
+			<div style={{
+				position: 'absolute',
+				top: '50px',
+				left: '50%',
+				transform: 'translateX(-50%)',
+				textAlign: 'center',
+				fontSize: '24px',
+				fontWeight: 'bold',
+				color: '#fff', // White text
+				backgroundColor: 'rgba(0, 0, 0, 0.3)', // Subtle dark background, similar to Spotify's style
+				padding: '10px 20px', // Spacing for readability
+				borderRadius: '50px', // Rounded shape without the sharp corners
+				zIndex: 1000,
+			}}>
+				<h1 style={{ margin: 0, fontFamily: 'Helvetica, Arial, sans-serif' }}>Hello, {userName}!</h1>
+			</div>
+			)}
+
+
+
+
+
 			{/* Sidebar Toggle */}
 			<button
 				className={`sidebar-toggle ${isSidebarCollapsed ? "collapsed" : ""}`}
@@ -866,29 +906,48 @@ useEffect(() => {
 				handleDeleteSong={handleDeleteSong}
 				onRefresh={loadPlaylists}
 			/>
+	<div className="main-content">
+  <div className="card-and-nextup">
 
-			{/* Main content */}
-			<MainContent
-				isSwiping={isSwiping}
-				isSidebarCollapsed={isSidebarCollapsed}
-				currentSong={currentSong}
-				isDragging={isDragging}
-				cardTransform={cardTransform}
-				activePlaylist={activePlaylist}
-				playlists={optimisticPlaylists}
-				progress={progress}
-				currentTime={currentTime}
-				duration={duration}
-				isPlaying={isPlaying}
-				handleStartSwiping={() => setIsSwiping(true)}
-				handleDragStart={handleDragStart}
-				handleDragMove={handleDragMove}
-				handleDragEnd={handleDragEnd}
-				handlePlayPause={handlePlayPause}
-				handleProgressClick={handleProgressClick}
-				handleSwipe={handleSwipe}
-				cardRef={cardRef}
-			/>
+    {/* Swipe Card */}
+    <MainContent
+      isSwiping={isSwiping}
+      isSidebarCollapsed={isSidebarCollapsed}
+      currentSong={currentSong}
+      isDragging={isDragging}
+      cardTransform={cardTransform}
+      activePlaylist={activePlaylist}
+      playlists={optimisticPlaylists}
+      progress={progress}
+      currentTime={currentTime}
+      duration={duration}
+      isPlaying={isPlaying}
+      handleStartSwiping={() => setIsSwiping(true)}
+      handleDragStart={handleDragStart}
+      handleDragMove={handleDragMove}
+      handleDragEnd={handleDragEnd}
+      handlePlayPause={handlePlayPause}
+      handleProgressClick={handleProgressClick}
+      handleSwipe={handleSwipe}
+      cardRef={cardRef}
+    />
+
+    {/* Next Up */}
+    {isSwiping && songQueue.length > 0 && (
+      <div className="next-song-preview-side">
+        <h4>Next Up</h4>
+        <div className="mini-song-side">
+          <img
+            src={songQueue[0].coverImage || "https://via.placeholder.com/80"}
+            alt={songQueue[0].name}
+          />
+          <p>{songQueue[0].name}</p>
+        </div>
+      </div>
+    )}
+
+  </div>
+</div>
 
 			{/* Exit button */}
 			{isSwiping ? (
