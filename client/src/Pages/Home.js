@@ -620,8 +620,91 @@ useEffect(() => {
 
 		// Add to active playlist if one is selected
 		if (activePlaylist) {
-		// Implementation for adding to playlist...
-		}
+				// Keep track of the current song for rollback if needed
+				const songToAdd = currentSong;
+
+				// Optimistically update song list
+				const updatedSongs = [...playlistSongs, songToAdd];
+				setPlaylistSongs(updatedSongs);
+
+				// Optimistically update data - cover image only changes if this is the first song
+				setOptimisticPlaylistData((prev) => {
+					const currentData = prev[activePlaylist] || {};
+					const newCount = (currentData.songCount || 0) + 1;
+					const isFirstSong = newCount === 1;
+
+					return {
+						...prev,
+						[activePlaylist]: {
+							...currentData,
+							songCount: newCount,
+							// Only update cover image if this is the first song
+							coverImage: isFirstSong
+								? songToAdd.coverImage
+								: currentData.coverImage,
+							songs: updatedSongs,
+						},
+					};
+				});
+
+				try {
+					// Extract artist name
+					const artistName = Array.isArray(currentSong.artists)
+						? currentSong.artists[0]
+						: currentSong.artists;
+
+					// Search for track in Spotify
+					const searchResult = await searchSpotifyTrack(
+						currentSong.name,
+						artistName
+					);
+
+					if (!searchResult.success) {
+						throw new Error(
+							`Could not find ${currentSong.name} by ${artistName} on Spotify`
+						);
+					}
+
+					// Use the track URI for adding to playlist
+					const trackUri = searchResult.uri;
+
+					// Call the API to add the track to the playlist
+					const result = await addTrack(trackUri, activePlaylist);
+					if (!result.success) {
+						throw new Error(result.error || "Failed to add track to playlist");
+					}
+
+					console.log(
+						`Track ${currentSong.name} added to playlist successfully`
+					);
+				} catch (error) {
+					console.error("Error adding track to playlist:", error);
+
+					// Rollback optimistic updates on failure
+					setPlaylistSongs((prev) => prev.filter((song) => song !== songToAdd));
+
+					setOptimisticPlaylistData((prev) => {
+						const currentData = prev[activePlaylist] || {};
+						const newCount = Math.max(0, (currentData.songCount || 0) - 1);
+
+						// Determine if we need to rollback the cover image
+						let coverImage = currentData.coverImage;
+						if (newCount === 0) {
+							coverImage = "https://via.placeholder.com/100"; // Default image when empty
+						}
+
+						return {
+							...prev,
+							[activePlaylist]: {
+								...currentData,
+								songCount: newCount,
+								coverImage: coverImage,
+								songs: playlistSongs.filter((song) => song !== songToAdd),
+							},
+						};
+					});
+				}
+			}
 	}
 	controlAudio("stop");
 
