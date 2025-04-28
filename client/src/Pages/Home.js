@@ -8,8 +8,6 @@ import DeletePlaylistModal from "../components/DeleteModal";
 import SoundwaveLoader from "../components/SoundwaveLoader";
 import NoSongsScreen from "../components/NoSongs";
 import {
-	getSampleTracks,
-	getRecommendations,
 	getSongsFromPlaylist,
 	API_BASE_URL,
 	getPlaylists,
@@ -220,7 +218,7 @@ useEffect(() => {
 		const initializeData = async () => {
 			setIsLoading(true);
 			try {
-        await loadPlaylist();
+        		await loadPlaylists();
 			} catch (error) {
 				console.error("Error loading data:", error);
 			} finally {
