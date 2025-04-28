@@ -290,7 +290,7 @@ def get_recommendations_stream():
                     batch = []
                     for track in user_recommendation_cache[user_id]:
                         batch.append(track)
-                        if len(batch) == 20:
+                        if len(batch) == 5:
                             print(f"Sending batch of {len(batch)} cached tracks to frontend")
                             yield f"data: {json.dumps(batch)}\n\n"
                             batch = []
@@ -312,7 +312,7 @@ def get_recommendations_stream():
                 for track in tracks_generator:
                     print(f"Processing track: {track.get('name', 'Unknown')} by {track.get('artist', 'Unknown')}")
                     batch.append(track)
-                    if len(batch) == 20:
+                    if len(batch) == 5:
                         print(f"Sending batch of {len(batch)} tracks to frontend")
                         yield f"data: {json.dumps(batch)}\n\n"
                         batch = []

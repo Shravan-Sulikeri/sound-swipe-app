@@ -1000,7 +1000,7 @@ class SpotifyManagement:
         return organized_data
     
 class ChunkingSpotify(SpotifyManagement):
-    def __init__(self, user_token=None, chunk_size=20):
+    def __init__(self, user_token=None, chunk_size=5):
         super().__init__(user_token=user_token)
         self.chunk_size = chunk_size
         self.processed_tracks = []
