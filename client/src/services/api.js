@@ -294,101 +294,40 @@ export async function getSongsFromPlaylist(playlistId) {
 	}
 };
 
-// export const startTrackChunking = async () => {
-// 	try {
-// 		const response = await fetch(`${API_BASE_URL}/api/start_track_chunking`, {
-// 		method: "POST",
-// 		credentials: "include",
-// 		});
-		
-// 		if (!response.ok) {
-// 		const errorData = await response.json();
-// 		throw new Error(errorData.error || "Failed to start track chunking");
-// 		}
-		
-// 		return await response.json();
-// 	} catch (error) {
-// 		console.error("Error starting track chunking:", error);
-// 		throw error;
-// 	}
-// };
+// Make sure to import this function where needed
+export const getDisplayName = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/display_name`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    console.log('Display name response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      console.error('Error response body:', errorText);
+      throw new Error(`Failed to fetch display name: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('Display name response data:', data);
+    
+    if (!data.display_name) {
+      console.warn('Response does not contain display_name:', data);
+      return 'Spotify User';
+    }
+    
+    return data.display_name;
+  } catch (error) {
+    console.error('Error getting display name:', error);
+    return 'Spotify User';
+  }
+};
 
-// export const getNextTrackChunk = async () => {
-// 	try {
-// 		const response = await fetch(`${API_BASE_URL}/api/get_track_chunk`, {
-// 		credentials: "include",
-// 		});
-		
-// 		if (!response.ok) {
-// 		const errorData = await response.json();
-// 		throw new Error(errorData.error || "Failed to get track chunk");
-// 		}
-		
-// 		const data = await response.json();
-		
-// 		if (data.status === 'success' && data.data.tracks) {
-// 		return {
-// 			tracks: data.data.tracks.map((track) => ({
-// 			id: track.id,
-// 			name: track.name,
-// 			artists: track.artist,
-// 			coverImage: track.image,
-// 			previewUrl: track.preview_url,
-// 			deezerId: track.id,
-// 			deezerUrl: track.deezer_url,
-// 			album: track.album,
-// 			duration: track.duration,
-// 			})),
-// 			isComplete: data.data.is_complete,
-// 			totalProcessed: data.data.total_processed
-// 		};
-// 		}
-		
-// 		return {
-// 		tracks: [],
-// 		isComplete: true,
-// 		totalProcessed: 0
-// 		};
-// 	} catch (error) {
-// 		console.error("Error getting track chunk:", error);
-// 		throw error;
-// 	}
-// };
-
-// export const loadAllChunks = async (onChunkReceived = () => {}) => {
-// 	try {
-// 		await startTrackChunking();
-		
-// 		let allTracks = [];
-// 		let isComplete = false;
-
-// 		while (!isComplete) {
-// 		const chunkData = await getNextTrackChunk();
-		
-// 		if (chunkData.tracks && chunkData.tracks.length > 0) {
-// 			allTracks = [...allTracks, ...chunkData.tracks];
-// 			onChunkReceived({
-// 			tracks: chunkData.tracks,
-// 			totalLoaded: allTracks.length,
-// 			totalProcessed: chunkData.totalProcessed,
-// 			progress: chunkData.totalProcessed ? 
-// 				Math.round((allTracks.length / chunkData.totalProcessed) * 100) : 0
-// 			});
-// 		}
-		
-// 		isComplete = chunkData.isComplete;
-		
-// 		if (!isComplete) {
-// 			await new Promise(resolve => setTimeout(resolve, 1000));
-// 		}
-// 		}
-		
-// 		return allTracks;
-// 	} catch (error) {
-// 		console.error("Error loading all chunks:", error);
-// 		throw error;
-// 	}
-// };
 export const useStreamedRecommendations = () => {
   const [tracks, setTracks] = useState([]);
   const [error, setError] = useState(null);

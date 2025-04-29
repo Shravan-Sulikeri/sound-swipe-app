@@ -11,6 +11,7 @@ from pymongo import MongoClient
 from flask_session import Session
 from llm_model import SpotifyManagement
 from llm_model import ChunkingSpotify
+from llm_model import SpotifyAPI
 
 # Load environment variables
 load_dotenv()
@@ -747,6 +748,39 @@ def search_track():
     except Exception as e:
         print(f"Error in search-track endpoint: {str(e)}")
         return jsonify({"error": "Server error", "details": str(e)}), 500
+
+@app.route('/api/display_name', methods=['GET'])
+def get_display_name():
+    """
+    Endpoint to get the user's Spotify display name using the /me endpoint.
+    """
+    try:
+        access_token, error_response, status_code = refresh_token_if_expired()
+        if error_response:
+            return jsonify(error_response), status_code
+            
+        # Make a direct request to Spotify's /me endpoint
+        headers = {
+            "Authorization": f"Bearer {access_token}"
+        }
+        response = requests.get("https://api.spotify.com/v1/me", headers=headers)
+        
+        if response.status_code != 200:
+            print(f"Error from Spotify API: {response.status_code} - {response.text}")
+            return jsonify({"error": "Failed to fetch user profile from Spotify"}), response.status_code
+            
+        # Extract display_name from the response
+        user_data = response.json()
+        display_name = user_data.get("display_name", "Spotify User")
+        
+        # Return the display name in a JSON response
+        response = jsonify({"display_name": display_name})
+        response.headers['Content-Type'] = 'application/json'
+        return response
+        
+    except Exception as e:
+        print(f"Error fetching display name: {e}")
+        return jsonify({"error": "Failed to fetch display name", "details": str(e)}), 500
 
 # @app.route('/api/start_track_chunking', methods=['POST'])
 # def start_track_chunking():

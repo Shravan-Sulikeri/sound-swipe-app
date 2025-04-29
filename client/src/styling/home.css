@@ -739,6 +739,7 @@
 	text-align: center;
 	animation: fadeIn 1s ease;
 	margin: 8%;
+	padding-right: 170px;
 }
 
 .welcome-section.hidden {
@@ -785,8 +786,8 @@
 	color: rgba(255, 255, 255, 0.8);
 	font-size: 1.4rem;
 	margin: 0;
-	margin-bottom: 40px;
-	margin-top: -12%;
+	margin-bottom: 30px;
+	margin-top: -21%;
 }
 
 .start-button {

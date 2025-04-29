@@ -17,6 +17,7 @@ import {
 	removeTrack,
 	searchSpotifyTrack,
 	useStreamedRecommendations,
+	getDisplayName,
 } from "../services/api";
 
 const Home = () => {
@@ -28,7 +29,8 @@ const Home = () => {
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 	const [cardTransform, setCardTransform] = useState({ x: 0, y: 0, rotate: 0 });
 	const [isLoading, setIsLoading] = useState(false);
-	const [userName, setUserName] = useState("Guest");
+	const [displayName, setDisplayName] = useState('Guest');
+	const [error, setError] = useState(null);
 
 	// Enhanced song queue implementation
 	const [processedSongIds, setProcessedSongIds] = useState(new Set()); // Track songs we've already shown
@@ -58,100 +60,128 @@ const Home = () => {
 	// This focuses on the key part that needs fixing
 	// Process new tracks arriving from stream
 	// Process new tracks arriving from stream
-useEffect(() => {
-  if (streamedTracks.length > 0) {
-    console.log(`[Home] Received ${streamedTracks.length} new tracks`);
+	useEffect(() => {
+	if (streamedTracks.length > 0) {
+		console.log(`[Home] Received ${streamedTracks.length} new tracks`);
+		
+		// Create a batch ID to track this group of songs
+		const batchId = `batch-${Date.now()}`;
+		
+		// Create a set of all song IDs we need to exclude:
+		// 1. Already processed songs
+		// 2. Current song (if any)
+		// 3. Songs already in the queue
+		const excludedSongIds = new Set(processedSongIds);
+		
+		// Add current song ID to excluded set if it exists
+		if (currentSong?.id) {
+		excludedSongIds.add(currentSong.id);
+		}
+		
+		// Add all queue song IDs to excluded set
+		songQueue.forEach(queuedSong => {
+		if (queuedSong?.id) {
+			excludedSongIds.add(queuedSong.id);
+		}
+		});
+		
+		// Filter out any songs we've already processed or queued (by Spotify ID)
+		const newSongs = streamedTracks.filter(track => 
+		track.id && !excludedSongIds.has(track.id)
+		);
+		
+		// Skip if no new songs after filtering
+		if (newSongs.length === 0) {
+		console.log("[Home] No new unique tracks after filtering");
+		return;
+		}
+		
+		console.log(`[Home] ${newSongs.length} new unique tracks after filtering`);
+		
+		// Register this batch with ONLY the new songs
+		setBatchRegistry(prev => ({
+		...prev,
+		[batchId]: {
+			timestamp: Date.now(),
+			songIds: newSongs.map(song => song.id),
+			totalSongs: newSongs.length,
+			processed: 0,
+			songs: newSongs // Store the actual songs in the batch
+		}
+		}));
+		
+		// If we don't have a current song, set it from the new batch
+		if (!currentSong && newSongs.length > 0) {
+		console.log("[Home] Setting first song from new batch");
+		setCurrentSong(newSongs[0]);
+		setCurrentBatchId(batchId);
+		setSongPosition({ batch: batchId, position: 1, total: newSongs.length });
+		
+		// Mark this song as processed
+		setProcessedSongIds(prev => {
+			const newSet = new Set(prev);
+			newSet.add(newSongs[0].id);
+			return newSet;
+		});
+		
+		// Add the rest to the queue
+		if (newSongs.length > 1) {
+			setSongQueue(prev => [...prev, ...newSongs.slice(1)]);
+		}
+		
+		// Update batch processed count
+		setBatchRegistry(prev => ({
+			...prev,
+			[batchId]: {
+			...prev[batchId],
+			processed: 1
+			}
+		}));
+		
+		// Handle artists display safely, checking if it's an array
+		const artistInfo = Array.isArray(newSongs[0].artists) 
+			? newSongs[0].artists.join(', ') 
+			: typeof newSongs[0].artists === 'string' 
+			? newSongs[0].artists 
+			: 'Unknown Artist';
+			
+		// Log current song position
+		console.log(`[Song Position] Now playing song 1/${newSongs.length} from batch ${batchId}`);
+		console.log(`[Song Info] "${newSongs[0].name}" by ${artistInfo}`);
+		} else if (newSongs.length > 0) {
+		// Just add all new songs to the queue
+		setSongQueue(prev => [...prev, ...newSongs]);
+		}
+	}
+	}, [currentSong, processedSongIds, songQueue, streamedTracks]);
+
+	useEffect(() => {
+    let isMounted = true;
     
-    // Create a batch ID to track this group of songs
-    const batchId = `batch-${Date.now()}`;
-    
-    // Create a set of all song IDs we need to exclude:
-    // 1. Already processed songs
-    // 2. Current song (if any)
-    // 3. Songs already in the queue
-    const excludedSongIds = new Set(processedSongIds);
-    
-    // Add current song ID to excluded set if it exists
-    if (currentSong?.id) {
-      excludedSongIds.add(currentSong.id);
-    }
-    
-    // Add all queue song IDs to excluded set
-    songQueue.forEach(queuedSong => {
-      if (queuedSong?.id) {
-        excludedSongIds.add(queuedSong.id);
-      }
-    });
-    
-    // Filter out any songs we've already processed or queued (by Spotify ID)
-    const newSongs = streamedTracks.filter(track => 
-      track.id && !excludedSongIds.has(track.id)
-    );
-    
-    // Skip if no new songs after filtering
-    if (newSongs.length === 0) {
-      console.log("[Home] No new unique tracks after filtering");
-      return;
-    }
-    
-    console.log(`[Home] ${newSongs.length} new unique tracks after filtering`);
-    
-    // Register this batch with ONLY the new songs
-    setBatchRegistry(prev => ({
-      ...prev,
-      [batchId]: {
-        timestamp: Date.now(),
-        songIds: newSongs.map(song => song.id),
-        totalSongs: newSongs.length,
-        processed: 0,
-        songs: newSongs // Store the actual songs in the batch
-      }
-    }));
-    
-    // If we don't have a current song, set it from the new batch
-    if (!currentSong && newSongs.length > 0) {
-      console.log("[Home] Setting first song from new batch");
-      setCurrentSong(newSongs[0]);
-      setCurrentBatchId(batchId);
-      setSongPosition({ batch: batchId, position: 1, total: newSongs.length });
-      
-      // Mark this song as processed
-      setProcessedSongIds(prev => {
-        const newSet = new Set(prev);
-        newSet.add(newSongs[0].id);
-        return newSet;
-      });
-      
-      // Add the rest to the queue
-      if (newSongs.length > 1) {
-        setSongQueue(prev => [...prev, ...newSongs.slice(1)]);
-      }
-      
-      // Update batch processed count
-      setBatchRegistry(prev => ({
-        ...prev,
-        [batchId]: {
-          ...prev[batchId],
-          processed: 1
+    const fetchDisplayName = async () => {
+      try {
+        const name = await getDisplayName();
+        
+        if (isMounted) {
+          setDisplayName(name);
         }
-      }));
-      
-      // Handle artists display safely, checking if it's an array
-      const artistInfo = Array.isArray(newSongs[0].artists) 
-        ? newSongs[0].artists.join(', ') 
-        : typeof newSongs[0].artists === 'string' 
-          ? newSongs[0].artists 
-          : 'Unknown Artist';
-          
-      // Log current song position
-      console.log(`[Song Position] Now playing song 1/${newSongs.length} from batch ${batchId}`);
-      console.log(`[Song Info] "${newSongs[0].name}" by ${artistInfo}`);
-    } else if (newSongs.length > 0) {
-      // Just add all new songs to the queue
-      setSongQueue(prev => [...prev, ...newSongs]);
-    }
-  }
-}, [currentSong, processedSongIds, songQueue, streamedTracks]);
+      } catch (error) {
+        console.error('Error in component while fetching display name:', error);
+        if (isMounted) {
+          setDisplayName('Unknown User');
+          setError(error.message || 'Failed to load user information');
+        }
+      }
+    };
+
+    fetchDisplayName();
+    
+    // Cleanup function to prevent state updates if component unmounts
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 	// Handle stream errors
 	useEffect(() => {
 		if (streamError) {
@@ -864,7 +894,7 @@ useEffect(() => {
 			<div style={{
 				position: 'absolute',
 				top: '50px',
-				left: '50%',
+				left: '52.3%',
 				transform: 'translateX(-50%)',
 				textAlign: 'center',
 				fontSize: '24px',
@@ -875,7 +905,7 @@ useEffect(() => {
 				borderRadius: '50px', // Rounded shape without the sharp corners
 				zIndex: 1000,
 			}}>
-				<h1 style={{ margin: 0, fontFamily: 'Helvetica, Arial, sans-serif' }}>Hello, {userName}!</h1>
+				<h1 style={{ margin: 0, fontFamily: 'Helvetica, Arial, sans-serif' }}>Welcome, {displayName}!</h1>
 			</div>
 			)}
 
