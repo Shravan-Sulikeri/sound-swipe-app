@@ -10,7 +10,6 @@ from flask_cors import CORS
 from pymongo import MongoClient
 from flask_session import Session
 from llm_model import SpotifyManagement
-from llm_model import ChunkingSpotify
 from llm_model import SpotifyAPI
 
 # Load environment variables
@@ -781,100 +780,6 @@ def get_display_name():
     except Exception as e:
         print(f"Error fetching display name: {e}")
         return jsonify({"error": "Failed to fetch display name", "details": str(e)}), 500
-
-# @app.route('/api/start_track_chunking', methods=['POST'])
-# def start_track_chunking():
-#     """Start processing tracks in chunks in the background"""
-#     try:
-#         access_token, error_response, status_code = refresh_token_if_expired()
-#         if error_response:
-#             return jsonify(error_response), status_code
-        
-#         user_id = get_user_id(access_token)
-        
-#         # Create chunking manager if not exists
-#         if user_id not in user_chunking_cache:
-#             user_chunking_cache[user_id] = ChunkingSpotify(user_token=access_token)
-        
-#         # Start the processing in background
-#         user_chunking_cache[user_id].start_processing()
-        
-#         return jsonify({
-#             'status': 'success',
-#             'message': 'Track processing started'
-#         })
-#     except Exception as e:
-#         print(f"Error starting track chunking: {e}")
-#         return jsonify({
-#             'status': 'error',
-#             'message': str(e)
-#         }), 500
-
-# @app.route('/api/get_track_chunk')
-# def get_track_chunk():
-#     """Get the next chunk of processed tracks"""
-#     try:
-#         access_token, error_response, status_code = refresh_token_if_expired()
-#         if error_response:
-#             return jsonify(error_response), status_code
-        
-#         user_id = get_user_id(access_token)
-        
-#         if user_id not in user_chunking_cache:
-#             return jsonify({
-#                 'status': 'error',
-#                 'message': 'Processing not started'
-#             }), 400
-        
-#         chunk_data = user_chunking_cache[user_id].get_next_chunk()
-        
-#         return jsonify({
-#             'status': 'success',
-#             'data': chunk_data
-#         })
-#     except Exception as e:
-#         print(f"Error getting track chunk: {e}")
-#         return jsonify({
-#             'status': 'error',
-#             'message': str(e)
-#         }), 500
-
-# @app.route('/api/track_chunk')
-# def track_chunking():
-#     '''
-#     Endpoint for initializing track chunking process
-#     '''
-#     try:
-#         access_token, error_response, status_code = refresh_token_if_expired()
-        
-#         if error_response:
-#             return jsonify({'error': 'Authentication required for track chunking'}), status_code
-        
-#         user_id = get_user_id(access_token=access_token)
-        
-#         # Create a new chunking manager instance
-#         chunking_manager = ChunkingSpotify(user_token=access_token)
-#         user_chunking_cache[user_id] = chunking_manager
-        
-#         # Start the processing
-#         chunking_manager.start_processing()
-        
-#         return jsonify({
-#             'status': 'success',
-#             'message': 'Track chunking process started',
-#             'total_tracks': 0,  # Will be updated as processing continues
-#             'is_complete': False
-#         })
-
-#     except Exception as e:
-#         print(f"Error starting track chunking: {e}")
-#         return jsonify({
-#             'status': 'error',
-#             'message': 'Unable to start track chunking',
-#             'error_info': str(e)
-#         }), 500
-        
-# playlists
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT'))
