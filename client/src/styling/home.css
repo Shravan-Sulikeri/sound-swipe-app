@@ -326,7 +326,80 @@
 	font-size: 0.9rem;
 	color: rgba(255, 255, 255, 0.6);
 }
-
+/* Adding a bounce effect for both directions */
+@keyframes bounce-right {
+	0% {
+	  transform: scale(1) rotate(0);
+	}
+	50% {
+	  transform: scale(1.05) rotate(-5deg);
+	}
+	100% {
+	  transform: scale(1) rotate(0);
+	}
+  }
+  
+  @keyframes bounce-left {
+	0% {
+	  transform: scale(1) rotate(0);
+	}
+	50% {
+	  transform: scale(1.05) rotate(5deg);
+	}
+	100% {
+	  transform: scale(1) rotate(0);
+	}
+  }
+  
+  /* Styles for right swipe animation (like) */
+  .song-card.swiped-left {
+	transform: translateX(150%) rotate(30deg) scale(0.9);
+	opacity: 0.7;
+	animation: bounce-right 0.5s ease-out;
+  }
+  
+  
+  .song-card.swiped-right {
+	transform: translateX(-150%) rotate(-30deg) scale(0.9);
+	opacity: 0.7;
+	animation: bounce-left 0.5s ease-out;
+  }
+  
+ 
+  .song-card.swiped-left,
+  .song-card.swiped-right {
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 10px rgba(138, 43, 226, 0.6);
+  }
+  
+  /* Custom Scrollbar styles for webkit browsers*/
+::-webkit-scrollbar {
+	width: 8px; 
+  }
+  
+  ::-webkit-scrollbar-thumb {
+	background-color: rgba(255, 255, 255, 0.6); 
+	border-radius: 10px; 
+	border: 2px solid transparent; 
+	background-clip: content-box; 
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+	background-color: rgba(255, 255, 255, 0.9);
+  }
+  
+  ::-webkit-scrollbar-track {
+	background: rgba(18, 18, 18, 0.6); 
+	border-radius: 10px; 
+  }
+  
+  ::-webkit-scrollbar-track:hover {
+	background: rgba(18, 18, 18, 0.7); 
+  }
+  
+  ::-webkit-scrollbar-corner {
+	background-color: transparent; 
+  }
+  
 .song-card {
 	background: rgba(255, 255, 255, 0.1);
 	border-radius: 20px;
@@ -419,6 +492,12 @@
 	position: relative;
 }
 
+  
+  .profile-img {
+	display: block;  /* Ensure it's displayed */
+	visibility: visible;  /* Ensure it's not hidden */
+  }
+  
 .progress-container {
 	flex: 1;
 	display: flex;
@@ -787,7 +866,6 @@
 	font-size: 1.4rem;
 	margin: 0;
 	margin-bottom: 30px;
-	margin-top: -21%;
 }
 
 .start-button {
