@@ -1135,7 +1135,7 @@
 	border: 1px solid rgba(255, 255, 255, 0.1);
 	box-shadow: 0 0 10px rgba(138, 43, 226, 0.7);
 	animation: fadeIn 0.3s ease;
-	animation: pulseGlow 1.5s infinite ease-in-out;
+	animation: pulseGlow 3s infinite ease-in-out;
 }
 
 .playlist-songs {
@@ -1217,6 +1217,18 @@
   }
   100% {
     box-shadow: 0 0 8px  rgba(138, 43, 226, 0.3);
+  }
+}
+
+@keyframes pulseGlowBig {
+  0% {
+    box-shadow: 0 0 20px rgba(138, 43, 226, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(138, 43, 226, 0.7); /* Slightly stronger pink glow */
+  }
+  100% {
+    box-shadow: 0 0 20px  rgba(138, 43, 226, 0.3);
   }
 }
 

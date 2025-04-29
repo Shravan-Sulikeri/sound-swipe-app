@@ -904,6 +904,8 @@ const Home = () => {
 				padding: '10px 20px', // Spacing for readability
 				borderRadius: '50px', // Rounded shape without the sharp corners
 				zIndex: 1000,
+				boxShadow: '0 0 30px rgba(138, 43, 226, 0.7)',
+				animation: 'pulseGlowBig 3s infinite ease-in-out',
 			}}>
 				<h1 style={{ margin: 0, fontFamily: 'Helvetica, Arial, sans-serif' }}>Welcome, {displayName}!</h1>
 			</div>
