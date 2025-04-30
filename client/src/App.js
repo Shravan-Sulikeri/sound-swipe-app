@@ -10,7 +10,7 @@ function App() {
 		const checkAuth = async () => {
 			try {
 				const response = await fetch(`${API_BASE_URL}/api/check-auth`, {
-					credentials: "include", // Include session cookies
+					credentials: "include",
 				});
 				const data = await response.json();
 				if (data.authenticated) {
