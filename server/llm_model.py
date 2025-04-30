@@ -227,7 +227,7 @@ class LastFmAPI:  # ! <---- This is the class that will be used to get the last.
         Returns:
             List of similar artist or None if not found
         """
-        url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
+        url = f"https://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
         response = requests.get(url)
 
         if response.status_code == 200:
@@ -256,7 +256,7 @@ class LastFmAPI:  # ! <---- This is the class that will be used to get the last.
         Returns:
             List of similar tracks or None if not found
         """
-        url = f"http://ws.audioscrobbler.com/2.0/?method=track.getsimilar&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
+        url = f"https://ws.audioscrobbler.com/2.0/?method=track.getsimilar&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
         response = requests.get(url)
 
         if response.status_code == 200:
@@ -288,7 +288,7 @@ class LastFmAPI:  # ! <---- This is the class that will be used to get the last.
         Returns:
             Track info dictionary or None if not found
         """
-        url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
+        url = f"https://ws.audioscrobbler.com/2.0/?method=track.getInfo&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
         response = requests.get(url)
 
         if response.status_code == 200:
