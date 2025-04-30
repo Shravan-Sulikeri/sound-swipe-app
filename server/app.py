@@ -14,12 +14,13 @@ from llm_model import SpotifyAPI
 
 # Load environment variables
 load_dotenv()
+REACT_APP = os.getenv('REACT_APP')
 
 # MongoDB configuration
 MONGO_URI = os.getenv('MONGO_URI')
 MONGO_CLIENT = os.getenv('MONGO_CLIENT')
 MONGO_SESSIONS = os.getenv('MONGO_SESSIONS')
-SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI')
+SPOTIFY_REDIRECT_URI = F'{REACT_APP}/callback'
 
 # Spotify API configuration
 CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
@@ -29,7 +30,8 @@ CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 app = Flask(__name__, static_folder='../client/build', static_url_path='/')
 app.secret_key = os.getenv('SESSION_SECRET', 'RANDOM STRING')
 app.config['SESSION_TYPE'] = 'mongodb'
-app.config['SESSION_MONGODB'] = MongoClient(MONGO_URI)
+app.config['SESSION_MONGODB'] = MongoClient(MONGO_URI, tls=True,
+    tlsAllowInvalidCertificates=True)
 app.config['SESSION_MONGODB_DB'] = MONGO_CLIENT
 app.config['SESSION_MONGODB_COLLECT'] = MONGO_SESSIONS
 app.config['SESSION_PERMANENT'] = True
@@ -44,7 +46,7 @@ Session(app)
 
 # Configure CORS
 CORS(app, resources={
-     r"/*": {"origins": ["http://localhost:3000", "http://localhost:5000"]}}, supports_credentials=True)
+     r"/*": {"origins": REACT_APP}}, supports_credentials=True)
 
 print("Initializing Spotify manager...")
 spotify_manager = SpotifyManagement()
@@ -185,7 +187,7 @@ def callback():
         }
 
         print(f"Access Token: {response_data['access_token'][:10]}...")
-        return redirect("http://localhost:3000/")
+        return redirect(REACT_APP)
 
     except Exception as e:
         print(f"Error exchanging code for access token: {e}")
@@ -195,7 +197,7 @@ def callback():
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect("http://localhost:3000/")
+    return redirect(REACT_APP)
 
 # user info + setup
 
