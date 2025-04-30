@@ -788,7 +788,7 @@ def get_display_name():
         print(f"Error fetching display name: {e}")
         return jsonify({"error": "Failed to fetch display name", "details": str(e)}), 500
 
-if __name__ == '__main__':
-    port = int(os.getenv('PORT'))
-    print(f"Server starting on port {port}...")
-    app.run(host='0.0.0.0', port=port, debug=False)
+# if __name__ == '__main__':
+#     port = int(os.getenv('PORT'))
+#     print(f"Server starting on port {port}...")
+#     app.run(host='0.0.0.0', port=port, debug=False)
