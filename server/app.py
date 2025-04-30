@@ -39,8 +39,9 @@ app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour in seconds
 app.config['SESSION_USE_SIGNER'] = True
 # Set to True in production with HTTPS
-app.config['SESSION_COOKIE_SECURE'] = False
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
 # Initialize session
 Session(app)
