@@ -48,7 +48,7 @@ Session(app)
 
 # Configure CORS
 CORS(app, resources={
-     r"/*": {"origins": REACT_APP}}, supports_credentials=True)
+     r"/*": {"origins": [REACT_APP]}}, supports_credentials=True)
 
 print("Initializing Spotify manager...")
 spotify_manager = SpotifyManagement()
