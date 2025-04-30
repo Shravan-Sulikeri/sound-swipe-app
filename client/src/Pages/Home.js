@@ -28,9 +28,7 @@ const Home = () => {
 	const [isDragging, setIsDragging] = useState(false);
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 	const [cardTransform, setCardTransform] = useState({ x: 0, y: 0, rotate: 0 });
-	const [isLoading, setIsLoading] = useState(false);
 	const [displayName, setDisplayName] = useState('Guest');
-	const [error, setError] = useState(null);
 
 	// Enhanced song queue implementation
 	const [processedSongIds, setProcessedSongIds] = useState(new Set()); // Track songs we've already shown
@@ -169,7 +167,6 @@ const Home = () => {
         console.error('Error in component while fetching display name:', error);
         if (isMounted) {
           setDisplayName('Unknown User');
-          setError(error.message || 'Failed to load user information');
         }
       }
     };
@@ -246,13 +243,10 @@ const Home = () => {
 	};
 	useEffect(() => {
 		const initializeData = async () => {
-			setIsLoading(true);
 			try {
         		await loadPlaylists();
 			} catch (error) {
 				console.error("Error loading data:", error);
-			} finally {
-				setIsLoading(false);
 			}
 		};
 		initializeData();

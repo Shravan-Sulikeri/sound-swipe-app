@@ -5,7 +5,7 @@ import requests
 import urllib.parse
 import json
 from dotenv import load_dotenv
-from flask import Flask, request, redirect, jsonify, session, make_response, Response, stream_with_context
+from flask import Flask, request, redirect, jsonify, session, make_response, Response, stream_with_context, send_from_directory
 from flask_cors import CORS
 from pymongo import MongoClient
 from flask_session import Session
@@ -26,7 +26,7 @@ CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 
 # App configuration
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../client/build', static_url_path='/')
 app.secret_key = os.getenv('SESSION_SECRET', 'RANDOM STRING')
 app.config['SESSION_TYPE'] = 'mongodb'
 app.config['SESSION_MONGODB'] = MongoClient(MONGO_URI)
@@ -119,6 +119,9 @@ def get_user_id(access_token):
 
 # Session handling
 
+@app.route('/')
+def home():
+    return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/api/check-auth')
 def check_auth():
