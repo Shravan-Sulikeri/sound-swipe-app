@@ -817,7 +817,7 @@
 .welcome-section {
 	text-align: center;
 	animation: fadeIn 1s ease;
-	margin: 8%;
+	/* margin: 8%; */
 	padding-right: 170px;
 }
 
@@ -859,6 +859,7 @@
 	-webkit-background-clip: text;
 	background-clip: text;
 	-webkit-text-fill-color: transparent;
+	z-index: -1;
 }
 
 .welcome-section p {
@@ -866,6 +867,14 @@
 	font-size: 1.4rem;
 	margin: 0;
 	margin-bottom: 30px;
+}
+
+.button-text-container{
+	display: column;
+	justify-content: center;
+	align-items: center;
+	margin-top: -22%;
+	z-index: 1000;
 }
 
 .start-button {

@@ -51,14 +51,16 @@ const MainContent = ({
 						src={require("../assets/soundswipe-logo-zip-file/png/logo-no-background.png")}
 					/>
 				</h1>
-				<p className="paragraph-text">
-					Discover new music by swiping right on songs you like
-				</p>
-				{!isSwiping && (
-					<button className="start-button" onClick={handleStartSwiping}>
-						Start Swiping
-					</button>
-				)}
+				<div className="button-text-container">
+					<p className="paragraph-text">
+						Discover new music by swiping right on songs you like
+					</p>
+					{!isSwiping && (
+						<button className="start-button" onClick={handleStartSwiping}>
+							Start Swiping
+						</button>
+					)}
+				</div>
 			</section>
 
 			<div className={`swipe-container ${!isSwiping ? "hidden" : ""}`}>

@@ -184,7 +184,12 @@ h1 {
   font-size: 3.5rem;
   margin-top: 20px;
   font-weight: 800;
-  background: linear-gradient(45deg, rgba(30, 215, 96, 1) 30%, rgba(220, 220, 220, 1) 70%);
+  background: linear-gradient(
+	45deg,
+	rgba(255, 105, 180, 0.8) 0%,
+	rgba(186, 85, 211, 0.8) 50%,
+	rgba(138, 43, 226, 0.8) 100%
+	);;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -197,8 +202,13 @@ h1 {
   font-weight: 300;
 }
 .login-button {
-  background: rgba(30, 215, 96, 0.9);
-  color: rgb(25, 20, 20);
+  background: linear-gradient(
+	45deg,
+	rgba(255, 105, 180, 0.8) 0%,
+	rgba(186, 85, 211, 0.8) 50%,
+	rgba(138, 43, 226, 0.8) 100%
+	);
+  color: white;
   border: none;
   border-radius: 50px;
   padding: 16px 48px;
@@ -206,13 +216,18 @@ h1 {
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.2s ease, background 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 15px rgba(138, 43, 226, 0.3);
   letter-spacing: 0.5px;
 }
 .login-button:hover {
-  background: rgba(30, 215, 96, 1);
+  background: linear-gradient(
+	45deg,
+	rgba(255, 105, 180, 1) 0%,
+	rgba(186, 85, 211, 1) 50%,
+	rgba(138, 43, 226, 1) 100%
+	);;
   transform: scale(1.03);
-  box-shadow: 0 6px 20px rgba(30, 215, 96, 0.4);
+  box-shadow: 0 4px 15px rgba(138, 43, 226, 0.5);
 }
 .login-button:active {
   transform: scale(0.98);
