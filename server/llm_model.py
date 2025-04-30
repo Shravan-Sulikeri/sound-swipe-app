@@ -315,7 +315,7 @@ class LastFmAPI:  # ! <---- This is the class that will be used to get the last.
         Returns:
             List of top tracks or None if not found
         """
-        url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getTopTracks&artist={quote(artist_name)}&api_key={self.api_key}&format=json&limit={limit}"
+        url = f"https://ws.audioscrobbler.com/2.0/?method=artist.getTopTracks&artist={quote(artist_name)}&api_key={self.api_key}&format=json&limit={limit}"
         response = requests.get(url)
 
         if response.status_code == 200:
