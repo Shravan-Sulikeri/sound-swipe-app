@@ -20,7 +20,8 @@ REACT_APP = os.getenv('REACT_APP')
 MONGO_URI = os.getenv('MONGO_URI')
 MONGO_CLIENT = os.getenv('MONGO_CLIENT')
 MONGO_SESSIONS = os.getenv('MONGO_SESSIONS')
-SPOTIFY_REDIRECT_URI = F'{REACT_APP}/callback'
+SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI')
+print (SPOTIFY_REDIRECT_URI)
 
 # Spotify API configuration
 CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
@@ -148,6 +149,7 @@ def login():
         "redirect_uri": SPOTIFY_REDIRECT_URI
     })
 
+    print(f"Redirecting to Spotify for authentication: {auth_url}")
     return redirect(auth_url)
 
 

@@ -39,7 +39,7 @@ class SpotifyAPI:
         load_dotenv()
         self.client_id = os.getenv("SPOTIFY_CLIENT_ID")
         self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
-        self.redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI")
+        self.redirect_uri = f'{os.getenv("REACT_APP")}/callback'
         self.token = external_token if external_token else self.get_token()
         self.auth_header = self.get_auth_header(self.token)
         if not external_token:
