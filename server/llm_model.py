@@ -15,8 +15,6 @@ import re
 import urllib
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-import asyncio
-import time
 from concurrent.futures import ThreadPoolExecutor
 
 # **IMPORTANT** please read the all NOTES
