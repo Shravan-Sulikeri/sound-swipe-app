@@ -9,7 +9,7 @@ load_dotenv()
 class APIClient:
     def __init__(self):
         """Initialize API client with base URL"""
-        self.base_url = 'http://localhost:3001'
+        self.base_url = 'https://soundswipe-a42g.onrender.com'
         
     def get_recommendations(self):
         """
