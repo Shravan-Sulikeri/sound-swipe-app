@@ -13,3 +13,4 @@ scikit-learn==1.6.1
 spotipy==2.25.1
 tqdm==4.61.2
 gunicorn==23.0.0
+gevent>=1.4
