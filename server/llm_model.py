@@ -14,6 +14,10 @@ from urllib.parse import quote
 import re
 import urllib
 import spotipy
+import gc
+import time
+import logging
+from functools import lru_cache
 from spotipy.oauth2 import SpotifyOAuth
 from concurrent.futures import ThreadPoolExecutor
 
@@ -211,130 +215,170 @@ class PlaylistManager:
             return "Invalid input, enter 1 or 2."
 
 
-class LastFmAPI:  # ! <---- This is the class that will be used to get the last.fm data, this is helping to increase the recommendations and get more data on the songs
+"""
+Enhanced LastFmAPI class with improved error handling and retry logic
+"""
+
+class LastFmAPI:
     def __init__(self):
         load_dotenv()
         self.api_key = os.getenv("LAST_FM_API_KEY")
+        self.session = requests.Session()  # Use a session for connection pooling
+        self.cache = {}  # Simple in-memory cache
 
-    # ! <---- This is the function that will be used to get the similar artist from last.fm
+    def _make_request(self, url, cache_key=None, max_retries=3, timeout=5):
+        """
+        Helper method to make API requests with retry logic and caching
+        
+        Args:
+            url: URL to request
+            cache_key: Optional key for caching (if None, no caching)
+            max_retries: Number of retry attempts
+            timeout: Request timeout in seconds
+            
+        Returns:
+            JSON response data or None on failure
+        """
+        # Check cache first
+        if cache_key and cache_key in self.cache:
+            return self.cache[cache_key]
+            
+        for attempt in range(max_retries):
+            try:
+                response = self.session.get(url, timeout=timeout)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    # Cache successful responses
+                    if cache_key:
+                        self.cache[cache_key] = data
+                    return data
+                elif response.status_code == 429:  # Rate limit
+                    retry_after = int(response.headers.get('Retry-After', 1))
+                    print(f"Rate limited by Last.fm API. Waiting {retry_after}s before retry")
+                    time.sleep(retry_after)
+                else:
+                    print(f"LastFM API error {response.status_code} (attempt {attempt+1}/{max_retries})")
+            except requests.exceptions.Timeout:
+                print(f"Last.fm API timeout (attempt {attempt+1}/{max_retries})")
+            except requests.exceptions.RequestException as e:
+                print(f"Last.fm API request error: {str(e)} (attempt {attempt+1}/{max_retries})")
+            except json.JSONDecodeError:
+                print(f"Invalid JSON received from Last.fm API (attempt {attempt+1}/{max_retries})")
+            
+            # Wait before retrying, with exponential backoff
+            if attempt < max_retries - 1:
+                time.sleep(1 * (2 ** attempt))  # 1s, 2s, 4s, etc.
+                
+        return None
+
     def get_similar_artist(self, artist_name):
         """
-        Fetches similar artist from Last.fm API.
-
+        Fetches similar artist from Last.fm API with improved error handling.
+        
         Args:
             artist_name: Name of the artist
-
+            
         Returns:
-            List of similar artist or None if not found
+            List of similar artist or empty list if not found
         """
+        if not artist_name:
+            return []
+            
         url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
-        response = requests.get(url, timeout=3)
+        cache_key = f"similar_artist_{artist_name}"
+        
+        data = self._make_request(url, cache_key)
+        
+        if data and 'similarartists' in data and 'artist' in data['similarartists']:
+            similar_artists = [x['name'] for x in data['similarartists']['artist']]
+            return similar_artists
+        
+        print(f"No similar artists found for {artist_name}")
+        return []
 
-        if response.status_code == 200:
-            data = response.json()
-            if 'similarartists' in data and 'artist' in data['similarartists']:
-                similar_artists = [x['name']
-                                for x in data['similarartists']['artist']]
-                return similar_artists
-            else:
-                print(f"No similar artists found for {artist_name}")
-                return None
-        else:
-            print(
-                f"LastFM API error {response.status_code} when finding similar artists for {artist_name}")
-            return None
-
-    # ! <---- This is the function that will be used to get the similar tracks from last.fm
     def get_similar_tracks(self, track_name, artist_name):
         """
-        Fetches similar tracks from Last.fm API.
-
+        Fetches similar tracks from Last.fm API with improved error handling.
+        
         Args:
             track_name: Name of the track
             artist_name: Name of the artist
-
+            
         Returns:
-            List of similar tracks or None if not found
+            List of similar tracks or empty list if not found
         """
+        if not track_name or not artist_name:
+            return []
+            
         url = f"http://ws.audioscrobbler.com/2.0/?method=track.getsimilar&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
-        response = requests.get(url, timeout=3)
+        cache_key = f"similar_tracks_{track_name}_{artist_name}"
+        
+        data = self._make_request(url, cache_key)
+        
+        if data and 'similartracks' in data and 'track' in data['similartracks']:
+            similar_tracks = [
+                {"name": x['name'], "artist": x['artist']['name']}
+                for x in data['similartracks']['track']
+            ]
+            return similar_tracks
+        
+        print(f"No similar tracks found for {track_name} by {artist_name}")
+        return []
 
-        if response.status_code == 200:
-            data = response.json()
-            if 'similartracks' in data and 'track' in data['similartracks']:
-                similar_tracks = [
-                    {"name": x['name'], "artist": x['artist']['name']}
-                    for x in data['similartracks']['track']
-                ]
-                return similar_tracks
-            else:
-                print(
-                    f"No similar tracks found for {track_name} by {artist_name}")
-                return None
-        else:
-            print(
-                f"LastFM API error {response.status_code} when finding similar tracks for {track_name}")
-            return None
-
-    # ! <---- This is the function that will be used to get the track info from last.fm
     def get_track_info(self, track_name, artist_name):
         """
-        Fetches detailed track information from Last.fm API.
-
+        Fetches detailed track information from Last.fm API with improved error handling.
+        
         Args:
             track_name: Name of the track
             artist_name: Name of the artist
-
+            
         Returns:
             Track info dictionary or None if not found
         """
-        url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
-        response = requests.get(url, timeout=3)
-
-        if response.status_code == 200:
-            data = response.json()
-            if 'track' in data:
-                return data['track']
-            else:
-                print(f"No track info found for {track_name} by {artist_name}")
-                return None
-        else:
-            print(
-                f"LastFM API error {response.status_code} when getting track info for {track_name}")
+        if not track_name or not artist_name:
             return None
+            
+        url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
+        cache_key = f"track_info_{track_name}_{artist_name}"
+        
+        data = self._make_request(url, cache_key)
+        
+        if data and 'track' in data:
+            return data['track']
+        
+        print(f"No track info found for {track_name} by {artist_name}")
+        return None
 
-    # ! <---- This is the function that will be used to get the top tracks from last.fm
     def get_artist_top_tracks(self, artist_name, limit=10):
         """
-        Fetches top tracks from an artist from Last.fm API.
-
+        Fetches top tracks from an artist from Last.fm API with improved error handling.
+        
         Args:
             artist_name: Name of the artist
             limit: Maximum number of tracks to return
-
+            
         Returns:
-            List of top tracks or None if not found
+            List of top tracks or empty list if not found
         """
+        if not artist_name:
+            return []
+            
         url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getTopTracks&artist={quote(artist_name)}&api_key={self.api_key}&format=json&limit={limit}"
-        response = requests.get(url, timeout=3)
-
-        if response.status_code == 200:
-            data = response.json()
-            if 'toptracks' in data and 'track' in data['toptracks']:
-                top_tracks = [
-                    {"name": track['name'], "artist": artist_name}
-                    for track in data['toptracks']['track']
-                ]
-                return top_tracks
-            else:
-                print(f"No top tracks found for {artist_name}")
-                return None
-        else:
-            print(
-                f"LastFM API error {response.status_code} when getting top tracks for {artist_name}")
-            return None
-
-
+        cache_key = f"artist_top_tracks_{artist_name}_{limit}"
+        
+        data = self._make_request(url, cache_key)
+        
+        if data and 'toptracks' in data and 'track' in data['toptracks']:
+            top_tracks = [
+                {"name": track['name'], "artist": artist_name}
+                for track in data['toptracks']['track']
+            ]
+            return top_tracks[:limit]  # Enforce limit here as well
+        
+        print(f"No top tracks found for {artist_name}")
+        return []
 class RecommendationManager:
     def __init__(self, user_token=None):
         load_dotenv()
@@ -530,150 +574,212 @@ class RecommendationManager:
     # ! <---- This is the function that will be used to optimize the recommendations using last.fm
     def optimize_recommendations(self):
         """
-        Optimizes recommendations using LLM seeds to get better recommendations:
+        Optimizes recommendations using LLM seeds and LastFM data with improved
+        error handling and memory management.
+        
         1. Use original LLM recommendation as seed only (not included in final output)
         2. Get 3 tracks from similar artists (primary source)
         3. Get 1 similar track from Last.fm (secondary source)
         4. Get 1 top track from original artist (tertiary source)
         """
-        recommendations = self.format_recommendations()
-        optimized_recommendations = {}
-        all_recommended_tracks = set()
-
-        for playlist_id, tracks in recommendations.items():
-            optimized_tracks = []
-
-            for track in tracks:
-                track_name = track["track_name"]
-                artist_name = track["artist_name"]
-
-                print(f"\n🎧 Processing seed: {track_name} by {artist_name}")
-                lastfm_recommendations = []
+        try:
+            recommendations = self.format_recommendations()
+            optimized_recommendations = {}
+            all_recommended_tracks = set()
+            
+            # Process one playlist at a time to reduce memory pressure
+            for playlist_id, tracks in recommendations.items():
+                print(f"\n📋 Processing playlist: {playlist_id} with {len(tracks)} seed tracks")
+                optimized_tracks = []
                 
-                # Track the seed to avoid recommending it
-                seed_track_key = f"{track_name.lower()}|{artist_name.lower()}"
-                all_recommended_tracks.add(seed_track_key)  # Add to seen but don't include in output
-
-                # 1. First priority: Get tracks from similar artists (3 tracks)
-                similar_artists_count = 0
-                similar_artists = self.similarity.get_similar_artist(artist_name)
-                if similar_artists:
-                    for similar_artist in similar_artists[:8]:  # Try up to 8 similar artists to find 3 good tracks
-                        if similar_artists_count >= 3:
-                            break
-
-                        artist_top_tracks = self.similarity.get_artist_top_tracks(similar_artist, limit=3)
-                        if artist_top_tracks:
-                            for top in artist_top_tracks:
-                                top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
-                                if top_key not in all_recommended_tracks:
-                                    print(f"✅ Similar artist track: {top['name']} by {top['artist']}")
-                                    lastfm_recommendations.append({
-                                        "track_name": top["name"],
-                                        "artist_name": top["artist"],
-                                        "source": "lastfm_similar_artist"
-                                    })
-                                    all_recommended_tracks.add(top_key)
-                                    similar_artists_count += 1
-                                    if similar_artists_count >= 3:  # Get exactly 3 tracks from similar artists
+                for track in tracks:
+                    track_name = track.get("track_name", "Unknown Track")
+                    artist_name = track.get("artist_name", "Unknown Artist")
+                    
+                    try:
+                        print(f"\n🎧 Processing seed: {track_name} by {artist_name}")
+                        lastfm_recommendations = []
+                        
+                        # Track the seed to avoid recommending it
+                        seed_track_key = f"{track_name.lower()}|{artist_name.lower()}"
+                        all_recommended_tracks.add(seed_track_key)  # Add to seen but don't include in output
+                        
+                        # 1. First priority: Get tracks from similar artists (3 tracks)
+                        similar_artists_count = 0
+                        try:
+                            similar_artists = self.similarity.get_similar_artist(artist_name)
+                            
+                            if similar_artists:
+                                for similar_artist in similar_artists[:8]:  # Try up to 8 similar artists to find 3 good tracks
+                                    if similar_artists_count >= 3:
                                         break
-
-                # 2. Second priority: Get 1 similar track from Last.fm
-                similar_track_found = False
-                similar_tracks = self.similarity.get_similar_tracks(track_name, artist_name)
-                if similar_tracks:
-                    for similar in similar_tracks:
-                        similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
-                        if similar_key not in all_recommended_tracks:
-                            print(f"✅ Last.fm similar track: {similar['name']} by {similar['artist']}")
-                            lastfm_recommendations.append({
-                                "track_name": similar["name"],
-                                "artist_name": similar["artist"],
-                                "source": "lastfm_similar"
-                            })
-                            all_recommended_tracks.add(similar_key)
-                            similar_track_found = True
-                            break
-
-                # If no similar track found with full name, try simplified name
-                if not similar_track_found:
-                    simplified_name = re.sub(r'\([^)]*\)', '', track_name).strip()
-                    simplified_name = re.sub(r'\[[^\]]*\]', '', simplified_name).strip()
-                    if simplified_name != track_name:
-                        similar_tracks = self.similarity.get_similar_tracks(simplified_name, artist_name)
-                        if similar_tracks:
-                            for similar in similar_tracks:
-                                similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
-                                if similar_key not in all_recommended_tracks:
-                                    print(f"✅ Last.fm similar track (simplified name): {similar['name']} by {similar['artist']}")
-                                    lastfm_recommendations.append({
-                                        "track_name": similar["name"],
-                                        "artist_name": similar["artist"],
-                                        "source": "lastfm_similar"
-                                    })
-                                    all_recommended_tracks.add(similar_key)
-                                    similar_track_found = True
+                                        
+                                    try:
+                                        artist_top_tracks = self.similarity.get_artist_top_tracks(similar_artist, limit=3)
+                                        
+                                        if artist_top_tracks:
+                                            for top in artist_top_tracks:
+                                                top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
+                                                if top_key not in all_recommended_tracks:
+                                                    print(f"✅ Similar artist track: {top['name']} by {top['artist']}")
+                                                    lastfm_recommendations.append({
+                                                        "track_name": top["name"],
+                                                        "artist_name": top["artist"],
+                                                        "source": "lastfm_similar_artist"
+                                                    })
+                                                    all_recommended_tracks.add(top_key)
+                                                    similar_artists_count += 1
+                                                    
+                                                if similar_artists_count >= 3:  # Get exactly 3 tracks from similar artists
+                                                    break
+                                    except Exception as artist_error:
+                                        print(f"⚠️ Error processing similar artist {similar_artist}: {str(artist_error)}")
+                                        continue  # Try next artist
+                        except Exception as similar_error:
+                            print(f"⚠️ Error getting similar artists for {artist_name}: {str(similar_error)}")
+                            
+                        # Proceed even if similar artists failed
+                        
+                        # 2. Second priority: Get 1 similar track from Last.fm
+                        similar_track_found = False
+                        try:
+                            similar_tracks = self.similarity.get_similar_tracks(track_name, artist_name)
+                            
+                            if similar_tracks:
+                                for similar in similar_tracks:
+                                    similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
+                                    if similar_key not in all_recommended_tracks:
+                                        print(f"✅ Last.fm similar track: {similar['name']} by {similar['artist']}")
+                                        lastfm_recommendations.append({
+                                            "track_name": similar["name"],
+                                            "artist_name": similar["artist"],
+                                            "source": "lastfm_similar"
+                                        })
+                                        all_recommended_tracks.add(similar_key)
+                                        similar_track_found = True
+                                        break
+                                
+                            # If no similar track found with full name, try simplified name
+                            if not similar_track_found:
+                                simplified_name = re.sub(r'\([^)]*\)', '', track_name).strip()
+                                simplified_name = re.sub(r'\[[^\]]*\]', '', simplified_name).strip()
+                                
+                                if simplified_name != track_name:
+                                    similar_tracks = self.similarity.get_similar_tracks(simplified_name, artist_name)
+                                    
+                                    if similar_tracks:
+                                        for similar in similar_tracks:
+                                            similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
+                                            if similar_key not in all_recommended_tracks:
+                                                print(f"✅ Last.fm similar track (simplified name): {similar['name']} by {similar['artist']}")
+                                                lastfm_recommendations.append({
+                                                    "track_name": similar["name"],
+                                                    "artist_name": similar["artist"],
+                                                    "source": "lastfm_similar"
+                                                })
+                                                all_recommended_tracks.add(similar_key)
+                                                similar_track_found = True
+                                                break
+                        except Exception as similar_error:
+                            print(f"⚠️ Error getting similar tracks for {track_name}: {str(similar_error)}")
+                        
+                        # 3. Third priority: Get 1 top track from the original artist
+                        top_track_found = False
+                        try:
+                            top_tracks = self.similarity.get_artist_top_tracks(artist_name, limit=8)
+                            
+                            if top_tracks:
+                                for top in top_tracks:
+                                    top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
+                                    if top_key not in all_recommended_tracks:
+                                        print(f"✅ Last.fm artist top track: {top['name']} by {top['artist']}")
+                                        lastfm_recommendations.append({
+                                            "track_name": top["name"],
+                                            "artist_name": top["artist"],
+                                            "source": "lastfm_artist_top"
+                                        })
+                                        all_recommended_tracks.add(top_key)
+                                        top_track_found = True
+                                        break
+                        except Exception as top_error:
+                            print(f"⚠️ Error getting top tracks for {artist_name}: {str(top_error)}")
+                        
+                        # If we didn't get any recommendations from LastFM for this seed, log it
+                        if not lastfm_recommendations:
+                            print(f"⚠️ No LastFM recommendations found for {track_name} by {artist_name}")
+                        
+                        optimized_tracks.extend(lastfm_recommendations)
+                        
+                        # Force garbage collection after processing each track
+                        gc.collect()
+                        
+                    except Exception as track_error:
+                        print(f"⚠️ Error processing track {track_name} by {artist_name}: {str(track_error)}")
+                        continue  # Skip to next track
+                        
+                # Store the optimized tracks for this playlist
+                optimized_recommendations[playlist_id] = optimized_tracks
+                
+            # Add new releases with error handling
+            try:
+                new_releases = self.incorporate_new_releases()
+                
+                if new_releases:
+                    for playlist_id, tracks in optimized_recommendations.items():
+                        if len(tracks) < 12:
+                            added_count = 0
+                            for release in new_releases:
+                                if added_count >= 3:  # Add up to 3 new releases
                                     break
-
-                # 3. Third priority: Get 1 top track from the original artist
-                top_track_found = False
-                top_tracks = self.similarity.get_artist_top_tracks(artist_name, limit=8)
-                if top_tracks:
-                    for top in top_tracks:
-                        top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
-                        if top_key not in all_recommended_tracks:
-                            print(f"✅ Last.fm artist top track: {top['name']} by {top['artist']}")
-                            lastfm_recommendations.append({
-                                "track_name": top["name"],
-                                "artist_name": top["artist"],
-                                "source": "lastfm_artist_top"
-                            })
-                            all_recommended_tracks.add(top_key)
-                            top_track_found = True
-                            break
-                                            
-                optimized_tracks.extend(lastfm_recommendations)
-
-            optimized_recommendations[playlist_id] = optimized_tracks
-
-        # Add new releases
-        new_releases = self.incorporate_new_releases()
-        if new_releases:
+                                    
+                                try:
+                                    release_key = f"{release['name'].lower()}|{release['artist'].lower()}"
+                                    
+                                    if release_key not in all_recommended_tracks:
+                                        print(f"✅ Adding new release: {release['name']} by {release['artist']} to playlist {playlist_id}")
+                                        tracks.append({
+                                            "track_name": release["name"],
+                                            "artist_name": release["artist"],
+                                            "source": "new_release"
+                                        })
+                                        all_recommended_tracks.add(release_key)
+                                        added_count += 1
+                                except Exception as release_error:
+                                    print(f"⚠️ Error adding new release: {str(release_error)}")
+                                    continue
+            except Exception as new_release_error:
+                print(f"⚠️ Error incorporating new releases: {str(new_release_error)}")
+                # Continue without new releases
+                
+            # Remove any duplicates that might have slipped through
+            final_recommendations = {}
+            
             for playlist_id, tracks in optimized_recommendations.items():
-                if len(tracks) < 12:
-                    added_count = 0
-                    for release in new_releases:
-                        if added_count >= 3:  # Add up to 3 new releases
-                            break
-
-                        release_key = f"{release['name'].lower()}|{release['artist'].lower()}"
-                        if release_key not in all_recommended_tracks:
-                            print(f"✅ Adding new release: {release['name']} by {release['artist']} to playlist {playlist_id}")
-                            tracks.append({
-                                "track_name": release["name"],
-                                "artist_name": release["artist"],
-                                "source": "new_release"
-                            })
-                            all_recommended_tracks.add(release_key)
-                            added_count += 1
-
-        # Remove any duplicates that might have slipped through
-        final_recommendations = {}
-        for playlist_id, tracks in optimized_recommendations.items():
-            seen_in_playlist = set()
-            unique_tracks = []
-
-            for track in tracks:
-                track_key = f"{track['track_name'].lower()}|{track['artist_name'].lower()}"
-                if track_key not in seen_in_playlist:
-                    unique_tracks.append(track)
-                    seen_in_playlist.add(track_key)
-
-            final_recommendations[playlist_id] = unique_tracks
+                seen_in_playlist = set()
+                unique_tracks = []
+                
+                for track in tracks:
+                    try:
+                        track_key = f"{track['track_name'].lower()}|{track['artist_name'].lower()}"
+                        
+                        if track_key not in seen_in_playlist:
+                            unique_tracks.append(track)
+                            seen_in_playlist.add(track_key)
+                    except Exception:
+                        # Skip malformed tracks
+                        continue
+                        
+                final_recommendations[playlist_id] = unique_tracks
+                
+            self.storage.tracks = final_recommendations
+            return final_recommendations
+            
+        except Exception as e:
+            print(f"❌ Critical error in optimization process: {str(e)}")
+            traceback.print_exc()
+            # Return empty dict as fallback
+            return {}
         
-        self.storage.tracks = final_recommendations
-        return final_recommendations
-    
     def get_enhanced_recommendations(self):
         """
         Main method to get enhanced recommendations with LastFM validation
@@ -772,41 +878,126 @@ class SpotifyManagement:
 
         return artist_string.strip()
 
+   @lru_cache(maxsize=100)
     def get_deezer_track_info(self, track_name, artist_name=''):
         """
-        Takes track info and uses deezer api to get necessary info that will be used when sending to frontend. 
+        Takes track info and uses deezer api to get necessary info.
+        Now with caching, better error handling and retries.
+        
+        Args:
+            track_name: Name of the track
+            artist_name: Optional artist name
+            
         Returns:
-            Track data details as a list.
+            Track data or None if not found
         """
+        if not track_name:
+            return None
+            
         try:
             query = track_name
             if artist_name:
                 query = f"{track_name} artist:\"{artist_name}\""
-
+                
             url = f"https://api.deezer.com/search?q={urllib.parse.quote(query)}"
-            response = requests.get(url, timeout=3)
-
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('data') and len(data['data']) > 0:
-                    return data['data'][0]
-                else:
-                    if artist_name:
-                        query = f"{track_name} {artist_name}"
-                        url = f"https://api.deezer.com/search?q={urllib.parse.quote(query)}"
-                        response = requests.get(url, timeout=3)
-                        if response.status_code == 200:
-                            data = response.json()
-                            if data.get('data') and len(data['data']) > 0:
-                                return data['data'][0]
-                    return None
-            else:
-                print(f"Failed to search: Status code {response.status_code}")
-                return None
+            
+            # Implement retry logic
+            max_retries = 2
+            
+            for attempt in range(max_retries):
+                try:
+                    response = requests.get(url, timeout=5)  # Increased timeout from 3 to 5 seconds
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get('data') and len(data['data']) > 0:
+                            return data['data'][0]
+                        break  # No results, no need to retry
+                    elif response.status_code == 429:  # Rate limit
+                        retry_after = int(response.headers.get('Retry-After', 1))
+                        time.sleep(retry_after)
+                    else:
+                        logging.warning(f"Deezer API error {response.status_code} (attempt {attempt+1})")
+                        
+                except requests.exceptions.Timeout:
+                    logging.warning(f"Deezer API timeout (attempt {attempt+1})")
+                except requests.exceptions.RequestException as e:
+                    logging.warning(f"Deezer API request error: {str(e)} (attempt {attempt+1})")
+                except json.JSONDecodeError:
+                    logging.warning(f"Invalid JSON from Deezer API (attempt {attempt+1})")
+                    
+                # Only sleep if we're going to retry
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    
+            # If exact artist search failed, try a more general search
+            if artist_name:
+                query = f"{track_name} {artist_name}"
+                url = f"https://api.deezer.com/search?q={urllib.parse.quote(query)}"
+                
+                try:
+                    response = requests.get(url, timeout=5)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get('data') and len(data['data']) > 0:
+                            return data['data'][0]
+                except Exception as e:
+                    logging.warning(f"Error in fallback search: {str(e)}")
+                    
+            return None
+            
         except Exception as e:
-            print(f"Error searching for track: {e}")
+            logging.error(f"Error searching for track: {str(e)}")
             return None
 
+    @lru_cache(maxsize=50)
+    def get_deezer_track_by_id(self, track_id):
+        """
+        Retrieves detailed track information by Deezer track ID with caching.
+        
+        Args:
+            track_id: The Deezer track ID
+            
+        Returns:
+            Track information dictionary or None if not found
+        """
+        if not track_id:
+            return None
+            
+        try:
+            url = f"https://api.deezer.com/track/{track_id}"
+            
+            max_retries = 2
+            
+            for attempt in range(max_retries):
+                try:
+                    response = requests.get(url, timeout=5)  # Increased timeout
+                    
+                    if response.status_code == 200:
+                        return response.json()
+                    elif response.status_code == 429:  # Rate limit
+                        retry_after = int(response.headers.get('Retry-After', 1))
+                        time.sleep(retry_after)
+                    else:
+                        logging.warning(f"Failed to fetch track by ID {track_id}: Status code {response.status_code} (attempt {attempt+1})")
+                        
+                except requests.exceptions.Timeout:
+                    logging.warning(f"Timeout fetching track by ID {track_id} (attempt {attempt+1})")
+                except requests.exceptions.RequestException as e:
+                    logging.warning(f"Request error fetching track by ID {track_id}: {str(e)} (attempt {attempt+1})")
+                except json.JSONDecodeError:
+                    logging.warning(f"Invalid JSON for track ID {track_id} (attempt {attempt+1})")
+                    
+                # Only sleep if we're going to retry
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    
+            return None
+            
+        except Exception as e:
+            logging.error(f"Error fetching track by ID {track_id}: {str(e)}")
+            return None
+        
     def get_deezer_track_by_id(self, track_id):
         """
         Retrieves detailed track information directly by Deezer track ID.
@@ -911,55 +1102,176 @@ class SpotifyManagement:
         return self.storage_manager.finalized_data
 
     def fetch_user_songs_streamed(self):
-        self.tracks = self.get_tracks()
-        print('\nFetching track data using deezer api for optimized recommendations...\n')
-
-        if not self.tracks:
-            return
-
-        track_ids_seen = set()
-
-        for track in self.get_tracks():
+        """
+        Enhanced version of fetch_user_songs_streamed with better error handling,
+        memory management, and timeouts.
+        
+        This is a generator that yields processed track data one at a time to 
+        prevent memory buildup.
+        """
+        # Set up logging
+        logging.info("Starting streaming recommendations process")
+        
+        # Clear memory before starting
+        gc.collect()
+        
+        try:
+            # Get optimized tracks - use a try/except to prevent generator from failing
             try:
-                track_name = track['name']
-                artist = track.get('artist', '')
-                primary_artist = self.extract_primary_artist(artist)
-
-                deezer_result = self.get_deezer_track_info(track_name, primary_artist) or \
-                                self.get_deezer_track_info(track_name, "") or \
-                                self.get_deezer_track_info(self.simplify_track_name(track_name), primary_artist)
-
-                if not deezer_result:
-                    continue
-
-                track_id = deezer_result['id']
-                if track_id in track_ids_seen:
-                    continue
-
-                track_ids_seen.add(track_id)
-                track_details = self.get_deezer_track_by_id(track_id) or deezer_result
-
-                is_new_release = track.get('source') == 'new_release'
-
-                result = {
-                    'name': track_details['title'],
-                    'id': track_details['id'],
-                    'image': track_details['album']['cover_xl'],
-                    'artist': track_details['artist']['name'],
-                    'preview_url': track_details['preview'],
-                    'deezer_url': track_details['link'],
-                    'album': track_details['album']['title'],
-                    'duration': track_details.get('duration', 0),
-                    'lastfm_verified': True,
-                    'is_new_release': is_new_release
-                }
-
-                yield result
-
+                self.tracks = self.get_tracks()
+                if not self.tracks:
+                    logging.warning("No recommendations available")
+                    yield {"error": "No recommendations available"}
+                    return
             except Exception as e:
-                print(f"Error processing {track['name']}: {e}")
-                continue
-
+                logging.error(f"Error getting tracks: {str(e)}")
+                yield {"error": "Error generating recommendations"}
+                return
+            
+            logging.info('Fetching track data using deezer api for optimized recommendations...')
+            
+            track_ids_seen = set()
+            processed_count = 0
+            error_count = 0
+            max_errors = 5  # Maximum consecutive errors before giving up
+            consecutive_errors = 0
+            
+            for track in self.get_tracks():
+                try:
+                    # Add a small delay between tracks to prevent API rate limiting
+                    if processed_count > 0:
+                        time.sleep(0.2)
+                    
+                    # Basic validation
+                    if not isinstance(track, dict):
+                        continue
+                        
+                    track_name = track.get('name', '')
+                    artist = track.get('artist', '')
+                    
+                    if not track_name or not artist:
+                        continue
+                    
+                    logging.info(f"Processing track: {track_name} by {artist}")
+                    
+                    primary_artist = self.extract_primary_artist(artist)
+                    
+                    # Try multiple search strategies with error handling
+                    deezer_result = None
+                    
+                    try:
+                        # Strategy 1: Exact match
+                        deezer_result = self.get_deezer_track_info(track_name, primary_artist)
+                    except Exception as search_error:
+                        logging.warning(f"Error in exact search: {str(search_error)}")
+                    
+                    if not deezer_result:
+                        try:
+                            # Strategy 2: Without artist
+                            deezer_result = self.get_deezer_track_info(track_name, "")
+                        except Exception as search_error:
+                            logging.warning(f"Error in no-artist search: {str(search_error)}")
+                    
+                    if not deezer_result:
+                        try:
+                            # Strategy 3: Simplified track name
+                            simplified_name = self.simplify_track_name(track_name)
+                            if simplified_name != track_name:
+                                deezer_result = self.get_deezer_track_info(simplified_name, primary_artist)
+                        except Exception as search_error:
+                            logging.warning(f"Error in simplified search: {str(search_error)}")
+                    
+                    # If no result after all strategies, continue to next track
+                    if not deezer_result:
+                        logging.warning(f"Could not find track: {track_name} by {artist}")
+                        consecutive_errors += 1
+                        
+                        if consecutive_errors >= max_errors:
+                            logging.error(f"Too many consecutive errors ({max_errors}). Stopping processing.")
+                            yield {"error": "Too many lookup failures. Please try again later."}
+                            break
+                            
+                        continue
+                    
+                    # Reset consecutive error counter on success
+                    consecutive_errors = 0
+                    
+                    # Prevent duplicates
+                    track_id = deezer_result.get('id')
+                    if not track_id or track_id in track_ids_seen:
+                        continue
+                        
+                    track_ids_seen.add(track_id)
+                    
+                    # Get detailed track info with error handling
+                    try:
+                        track_details = self.get_deezer_track_by_id(track_id)
+                    except Exception as detail_error:
+                        logging.warning(f"Error getting detailed track info: {str(detail_error)}")
+                        track_details = None
+                        
+                    if not track_details:
+                        track_details = deezer_result
+                    
+                    # Check if we have all required fields before yielding
+                    required_fields = ['title', 'id', 'album', 'artist', 'preview', 'link']
+                    for field in required_fields:
+                        if field not in track_details:
+                            if field == 'album' or field == 'artist':
+                                if not isinstance(track_details.get(field, {}), dict):
+                                    logging.warning(f"Missing or invalid {field} in track details")
+                                    continue
+                            else:
+                                logging.warning(f"Missing {field} in track details")
+                                continue
+                    
+                    # Format the result
+                    is_new_release = track.get('source') == 'new_release'
+                    
+                    result = {
+                        'name': track_details['title'],
+                        'id': track_details['id'],
+                        'image': track_details['album'].get('cover_xl', ''),
+                        'artist': track_details['artist'].get('name', artist),
+                        'preview_url': track_details.get('preview', ''),
+                        'deezer_url': track_details.get('link', ''),
+                        'album': track_details['album'].get('title', ''),
+                        'duration': track_details.get('duration', 0),
+                        'lastfm_verified': True,
+                        'is_new_release': is_new_release
+                    }
+                    
+                    # Yield the track and increment counter
+                    processed_count += 1
+                    logging.info(f"Successfully processed track: {result['name']} by {result['artist']}")
+                    
+                    yield result
+                    
+                    # Force garbage collection every 5 tracks
+                    if processed_count % 5 == 0:
+                        gc.collect()
+                        
+                except Exception as e:
+                    error_count += 1
+                    logging.error(f"Error processing track {track.get('name', 'unknown')}: {str(e)}")
+                    consecutive_errors += 1
+                    
+                    if consecutive_errors >= max_errors:
+                        logging.error(f"Too many consecutive errors ({max_errors}). Stopping processing.")
+                        yield {"error": "Too many processing failures. Please try again later."}
+                        break
+                        
+                    continue
+            
+            logging.info(f"Streaming complete. Processed {processed_count} tracks with {error_count} errors")
+            
+        except Exception as e:
+            logging.error(f"Critical error in streaming process: {str(e)}")
+            yield {"error": "An error occurred during recommendation streaming"}
+        finally:
+            # Final cleanup
+            gc.collect()
+            
     # ! <---- Dont know why this is added, this cn be removed it not needed or planned to be used
     def organize_by_playlist(self):
         """
