@@ -228,7 +228,7 @@ class LastFmAPI:  # ! <---- This is the class that will be used to get the last.
             List of similar artist or None if not found
         """
         url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
-        response = requests.get(url)
+        response = requests.get(url, timeout=3)
 
         if response.status_code == 200:
             data = response.json()
@@ -257,7 +257,7 @@ class LastFmAPI:  # ! <---- This is the class that will be used to get the last.
             List of similar tracks or None if not found
         """
         url = f"http://ws.audioscrobbler.com/2.0/?method=track.getsimilar&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
-        response = requests.get(url)
+        response = requests.get(url, timeout=3)
 
         if response.status_code == 200:
             data = response.json()
@@ -289,7 +289,7 @@ class LastFmAPI:  # ! <---- This is the class that will be used to get the last.
             Track info dictionary or None if not found
         """
         url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&track={quote(track_name)}&artist={quote(artist_name)}&api_key={self.api_key}&format=json"
-        response = requests.get(url)
+        response = requests.get(url, timeout=3)
 
         if response.status_code == 200:
             data = response.json()
@@ -316,7 +316,7 @@ class LastFmAPI:  # ! <---- This is the class that will be used to get the last.
             List of top tracks or None if not found
         """
         url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getTopTracks&artist={quote(artist_name)}&api_key={self.api_key}&format=json&limit={limit}"
-        response = requests.get(url)
+        response = requests.get(url, timeout=3)
 
         if response.status_code == 200:
             data = response.json()
@@ -787,7 +787,7 @@ class SpotifyManagement:
                 query = f"{track_name} artist:\"{artist_name}\""
 
             url = f"https://api.deezer.com/search?q={urllib.parse.quote(query)}"
-            response = requests.get(url)
+            response = requests.get(url, timeout=3)
 
             if response.status_code == 200:
                 data = response.json()
@@ -797,7 +797,7 @@ class SpotifyManagement:
                     if artist_name:
                         query = f"{track_name} {artist_name}"
                         url = f"https://api.deezer.com/search?q={urllib.parse.quote(query)}"
-                        response = requests.get(url)
+                        response = requests.get(url, timeout=3)
                         if response.status_code == 200:
                             data = response.json()
                             if data.get('data') and len(data['data']) > 0:
@@ -822,7 +822,7 @@ class SpotifyManagement:
         """
         try:
             url = f"https://api.deezer.com/track/{track_id}"
-            response = requests.get(url)
+            response = requests.get(url, timeout=3)
 
             if response.status_code == 200:
                 return response.json()
