@@ -42,13 +42,25 @@ app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['PREFERRED_URL_SCHEME'] = 'https'  # Force HTTPS for all URL generation
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit request size to 16MB
+
 
 # Initialize session
 Session(app)
 
 # Configure CORS
 CORS(app, resources={
-     r"/*": {"origins": [REACT_APP]}}, supports_credentials=True)
+     r"/*": {
+         "origins": REACT_APP,
+         "supports_credentials": True,
+         "allow_headers": ["Content-Type", "Authorization"],
+         "expose_headers": ["Content-Type", "X-CSRFToken"],
+         "max_age": 600  # Cache preflight requests for 10 minutes
+     }
+})
+
+requests.adapters.DEFAULT_TIMEOUT = 15
 
 print("Initializing Spotify manager...")
 spotify_manager = SpotifyManagement()
@@ -291,19 +303,23 @@ def get_recommendations_stream():
             return jsonify({"error": "Authentication required for recommendations"}), status_code
 
         user_id = get_user_id(access_token=access_token)
+        
+        # Use cached recommendations if available
         if user_id in user_recommendation_cache:
             print(f"Streaming cached recommendations for user {user_id}")
             def stream_cached():
                 try:
                     batch = []
+                    # Process in smaller batches to reduce memory usage
+                    batch_size = 3  # Reduced from 5
                     for track in user_recommendation_cache[user_id]:
                         batch.append(track)
-                        if len(batch) == 5:
-                            print(f"Sending batch of {len(batch)} cached tracks to frontend")
+                        if len(batch) == batch_size:
                             yield f"data: {json.dumps(batch)}\n\n"
                             batch = []
+                            # Add a small delay to prevent overwhelming the connection
+                            time.sleep(0.1)
                     if batch:  # Send any remaining tracks
-                        print(f"Sending final batch of {len(batch)} cached tracks to frontend")
                         yield f"data: {json.dumps(batch)}\n\n"
                 except Exception as e:
                     print(f"Error in cached stream: {str(e)}")
@@ -312,27 +328,55 @@ def get_recommendations_stream():
 
         print(f"Generating and streaming recommendations for user {user_id}")
         user_spotify_manager = SpotifyManagement(user_token=access_token)
-        tracks_generator = user_spotify_manager.fetch_user_songs_streamed()
-
-        def generate():
-            try:
-                batch = []
-                for track in tracks_generator:
-                    print(f"Processing track: {track.get('name', 'Unknown')} by {track.get('artist', 'Unknown')}")
-                    batch.append(track)
-                    if len(batch) == 5:
-                        print(f"Sending batch of {len(batch)} tracks to frontend")
+        
+        # Try-except block to handle potential memory issues
+        try:
+            tracks_generator = user_spotify_manager.fetch_user_songs_streamed()
+            
+            def generate():
+                try:
+                    batch = []
+                    batch_size = 3  # Reduced from 5
+                    track_count = 0
+                    max_tracks = 100  # Limit the total number of tracks to prevent memory issues
+                    
+                    for track in tracks_generator:
+                        track_count += 1
+                        if track_count > max_tracks:
+                            break
+                            
+                        print(f"Processing track {track_count}: {track.get('name', 'Unknown')} by {track.get('artist', 'Unknown')}")
+                        batch.append(track)
+                        
+                        if len(batch) == batch_size:
+                            print(f"Sending batch of {len(batch)} tracks to frontend")
+                            yield f"data: {json.dumps(batch)}\n\n"
+                            batch = []
+                            # Add a small delay to prevent overwhelming the connection
+                            time.sleep(0.1)
+                            
+                    if batch:  # Send any remaining tracks
+                        print(f"Sending final batch of {len(batch)} tracks to frontend")
                         yield f"data: {json.dumps(batch)}\n\n"
-                        batch = []
-                if batch:  # Send any remaining tracks
-                    print(f"Sending final batch of {len(batch)} tracks to frontend")
-                    yield f"data: {json.dumps(batch)}\n\n"
-            except Exception as e:
-                print(f"Error in stream generation: {str(e)}")
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                        
+                    # Cache the results for future requests if not already cached
+                    if track_count > 0 and user_id not in user_recommendation_cache:
+                        # Need to recreate this since we've consumed the generator
+                        all_tracks = user_spotify_manager.fetch_user_songs()
+                        if all_tracks:
+                            user_recommendation_cache[user_id] = all_tracks
+                            print(f"Cached {len(all_tracks)} tracks for user {user_id}")
+                            
+                except Exception as e:
+                    print(f"Error in stream generation: {str(e)}")
+                    yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
-        return Response(stream_with_context(generate()), mimetype='text/event-stream')
-
+            return Response(stream_with_context(generate()), mimetype='text/event-stream')
+            
+        except Exception as e:
+            print(f"Error preparing tracks generator: {str(e)}")
+            return jsonify({"error": "Failed to prepare recommendations", "details": str(e)}), 500
+            
     except Exception as e:
         print(f"Critical error in recommendations stream: {str(e)}")
         return Response(f"data: {json.dumps({'error': str(e)})}\n\n", mimetype='text/event-stream')
