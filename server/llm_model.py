@@ -729,30 +729,27 @@ class SpotifyManagement:
 
     def get_tracks(self):
         """
-        Retrieves tracks from the optimized LLM + LastFM recommendation process.
-        Returns:
-            List of dictionaries with track details.
+        Generator that yields track dictionaries one at a time for streaming.
         """
         optimized_playlists = self.recommendation_manager.get_enhanced_recommendations()
         self.storage_manager.tracks = optimized_playlists
 
         if not optimized_playlists:
             print("No recommendations available.")
-            return []
+            return
 
-        all_tracks = []
+        count = 0
         for key, value in optimized_playlists.items():
             for track in value:
                 track_name = track['track_name']
                 artist_name = track['artist_name']
-                all_tracks.append({
+                count += 1
+                yield {
                     "name": track_name,
                     "artist": artist_name
-                })
+                }
 
-        self.storage_manager.music = all_tracks
-        print(f"Successfully retrieved {len(all_tracks)} optimized tracks.")
-        return self.storage_manager.music
+        print(f"Successfully yielded {count} optimized tracks.")
 
     def simplify_track_name(self, track_name):
         simplified = re.sub(r'\([^)]*\)', '', track_name)
@@ -922,7 +919,7 @@ class SpotifyManagement:
 
         track_ids_seen = set()
 
-        for track in self.tracks:
+        for track in self.get_tracks():
             try:
                 track_name = track['name']
                 artist = track.get('artist', '')
