@@ -878,7 +878,7 @@ class SpotifyManagement:
 
         return artist_string.strip()
 
-   @lru_cache(maxsize=100)
+    @lru_cache(maxsize=100)
     def get_deezer_track_info(self, track_name, artist_name=''):
         """
         Takes track info and uses deezer api to get necessary info.
