@@ -14,3 +14,4 @@ spotipy==2.25.1
 tqdm==4.61.2
 gunicorn==23.0.0
 gevent>=1.4
+eventlet>=0.39.0
