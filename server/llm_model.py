@@ -37,6 +37,7 @@ class GlobalVariables:
         self.music = None
         self.finalized_data = None
 
+
 class SpotifyAPI:
     def __init__(self, external_token=None):
         load_dotenv()
@@ -55,6 +56,11 @@ class SpotifyAPI:
             self.sp = spotipy.Spotify(auth=external_token)
 
     def get_token(self):
+        """
+        gets api key and returns a token for the user to use for authentication.
+        client secret id : api key
+        puts in byte format
+        """
         auth_str = self.client_id + ":" + self.client_secret
         auth_bytes = auth_str.encode('utf-8')
         auth_b64 = str(base64.b64encode(auth_bytes), "utf-8")
@@ -135,15 +141,27 @@ class SpotifyAPI:
 
 
 class PlaylistManager:
+    """
+        creates a dictionary of all the playlists and their respective tracks.
+
+    """
+
     def __init__(self, user_token=None):
         self.spotify_api = SpotifyAPI(external_token=user_token)
         self.token = self.spotify_api.token
         self.user_token = user_token
 
     def combining_playlist_and_track(self):
+        """
+        Combines playlist and track data into a dictionary or structured format.
+        Input: Spotify API token
+        Output: Dictionary of playlists and tracks or structured format
+        """
         playlist_tracks = {}
+        # x = input("1 -> for dictionary format or 2 -> for structured format: ") #! Right now input is required lets change so input 1 will always be used in prod.
         x = 1
         if (x == 2):
+            print("\nRetrieving your playlist and tracks, please wait patiently...\n")
             playlist = self.spotify_api.fetch_logged_in_user_playlist(
                 self.token)
             for value in tqdm(playlist, desc="Fetching playlists and tracks... ", unit="playlist", bar_format="{l_bar}{bar}✅ {n_fmt}/{total_fmt} [{elapsed}]", colour="green"):
@@ -178,14 +196,31 @@ class PlaylistManager:
             return "Invalid input, enter 1 or 2."
 
 
+"""
+Enhanced LastFmAPI class with improved error handling and retry logic
+"""
+
 class LastFmAPI:
     def __init__(self):
         load_dotenv()
         self.api_key = os.getenv("LAST_FM_API_KEY")
-        self.session = requests.Session()
-        self.cache = {}
+        self.session = requests.Session()  # Use a session for connection pooling
+        self.cache = {}  # Simple in-memory cache
 
     def _make_request(self, url, cache_key=None, max_retries=3, timeout=5):
+        """
+        Helper method to make API requests with retry logic and caching
+        
+        Args:
+            url: URL to request
+            cache_key: Optional key for caching (if None, no caching)
+            max_retries: Number of retry attempts
+            timeout: Request timeout in seconds
+            
+        Returns:
+            JSON response data or None on failure
+        """
+        # Check cache first
         if cache_key and cache_key in self.cache:
             return self.cache[cache_key]
             
@@ -195,28 +230,39 @@ class LastFmAPI:
                 
                 if response.status_code == 200:
                     data = response.json()
+                    # Cache successful responses
                     if cache_key:
                         self.cache[cache_key] = data
                     return data
-                elif response.status_code == 429:
+                elif response.status_code == 429:  # Rate limit
                     retry_after = int(response.headers.get('Retry-After', 1))
+                    print(f"Rate limited by Last.fm API. Waiting {retry_after}s before retry")
                     time.sleep(retry_after)
                 else:
-                    if attempt < max_retries - 1:
-                        time.sleep(1 * (2 ** attempt))
+                    print(f"LastFM API error {response.status_code} (attempt {attempt+1}/{max_retries})")
             except requests.exceptions.Timeout:
-                if attempt < max_retries - 1:
-                    time.sleep(1 * (2 ** attempt))
-            except requests.exceptions.RequestException:
-                if attempt < max_retries - 1:
-                    time.sleep(1 * (2 ** attempt))
+                print(f"Last.fm API timeout (attempt {attempt+1}/{max_retries})")
+            except requests.exceptions.RequestException as e:
+                print(f"Last.fm API request error: {str(e)} (attempt {attempt+1}/{max_retries})")
             except json.JSONDecodeError:
-                if attempt < max_retries - 1:
-                    time.sleep(1 * (2 ** attempt))
+                print(f"Invalid JSON received from Last.fm API (attempt {attempt+1}/{max_retries})")
+            
+            # Wait before retrying, with exponential backoff
+            if attempt < max_retries - 1:
+                time.sleep(1 * (2 ** attempt))  # 1s, 2s, 4s, etc.
                 
         return None
 
     def get_similar_artist(self, artist_name):
+        """
+        Fetches similar artist from Last.fm API with improved error handling.
+        
+        Args:
+            artist_name: Name of the artist
+            
+        Returns:
+            List of similar artist or empty list if not found
+        """
         if not artist_name:
             return []
             
@@ -229,9 +275,20 @@ class LastFmAPI:
             similar_artists = [x['name'] for x in data['similarartists']['artist']]
             return similar_artists
         
+        print(f"No similar artists found for {artist_name}")
         return []
 
     def get_similar_tracks(self, track_name, artist_name):
+        """
+        Fetches similar tracks from Last.fm API with improved error handling.
+        
+        Args:
+            track_name: Name of the track
+            artist_name: Name of the artist
+            
+        Returns:
+            List of similar tracks or empty list if not found
+        """
         if not track_name or not artist_name:
             return []
             
@@ -247,9 +304,20 @@ class LastFmAPI:
             ]
             return similar_tracks
         
+        print(f"No similar tracks found for {track_name} by {artist_name}")
         return []
 
     def get_track_info(self, track_name, artist_name):
+        """
+        Fetches detailed track information from Last.fm API with improved error handling.
+        
+        Args:
+            track_name: Name of the track
+            artist_name: Name of the artist
+            
+        Returns:
+            Track info dictionary or None if not found
+        """
         if not track_name or not artist_name:
             return None
             
@@ -261,9 +329,20 @@ class LastFmAPI:
         if data and 'track' in data:
             return data['track']
         
+        print(f"No track info found for {track_name} by {artist_name}")
         return None
 
     def get_artist_top_tracks(self, artist_name, limit=10):
+        """
+        Fetches top tracks from an artist from Last.fm API with improved error handling.
+        
+        Args:
+            artist_name: Name of the artist
+            limit: Maximum number of tracks to return
+            
+        Returns:
+            List of top tracks or empty list if not found
+        """
         if not artist_name:
             return []
             
@@ -277,11 +356,10 @@ class LastFmAPI:
                 {"name": track['name'], "artist": artist_name}
                 for track in data['toptracks']['track']
             ]
-            return top_tracks[:limit]
+            return top_tracks[:limit]  # Enforce limit here as well
         
+        print(f"No top tracks found for {artist_name}")
         return []
-
-
 class RecommendationManager:
     def __init__(self, user_token=None):
         load_dotenv()
@@ -294,9 +372,18 @@ class RecommendationManager:
         self.similarity = LastFmAPI()
 
     def create_recommendation_prompt(self):
+        """
+        Enhanced method with more robust error handling and debugging
+        """
         try:
             playlists = self.combinator.combining_playlist_and_track()
-            if not isinstance(playlists, dict):
+            if isinstance(playlists, dict):
+                print("Playlists Found:")
+                for name, tracks in playlists.items():
+                    print(f" 💽 {name}: {len(tracks)} tracks")
+            else:
+                print("Playlist retrieval returned non-dictionary type:",
+                      type(playlists))
                 return None
 
             prompt = (
@@ -344,20 +431,33 @@ class RecommendationManager:
                 stream=False,
             )
             full_response = chat_completion.choices[0].message.content
+            print("\n------------ RAW AI RESPONSE ------------")
+            print(full_response)
+            print("------------ END RAW RESPONSE -----------\n")
             try:
                 parsed_response = json.loads(full_response)
                 return parsed_response
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as json_err:
+                print("JSON PARSING ERROR:")
+                print(json_err)
+                print("Problematic JSON content:", full_response)
                 return None
 
-        except Exception:
+        except Exception as e:
+            print("UNEXPECTED ERROR IN RECOMMENDATION GENERATION:")
+            traceback.print_exc()
             return None
 
     def format_recommendations(self):
+        """
+        Enhanced recommendation formatting with extensive error handling
+        """
         try:
             if not hasattr(self, 'ai_response') or not self.ai_response:
+                print("Generating recommendations...")
                 self.ai_response = self.create_recommendation_prompt()
             if not self.ai_response:
+                print("No recommendations could be generated.")
                 return {}
             formatted_tracks = {}
             for playlist_name, tracks in self.ai_response.items():
@@ -372,10 +472,15 @@ class RecommendationManager:
             self.storage.tracks = formatted_tracks
             return self.storage.tracks
 
-        except Exception:
+        except Exception as e:
+            print("ERROR IN FORMATTING RECOMMENDATIONS:")
+            traceback.print_exc()
             return {}
 
     def create_artist_recommendations_prompt(self, artist_name):
+        """
+        Generate song recommendations for a specific artist using LLM
+        """
         try:
             prompt = (
                 f"Recommend 3 popular songs by {artist_name} or music that sounds very similar to {artist_name}'s style.\n\n"
@@ -408,19 +513,30 @@ class RecommendationManager:
             try:
                 parsed_response = json.loads(full_response)
                 return parsed_response
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as json_err:
+                print(f"JSON PARSING ERROR for artist {artist_name}:")
+                print(json_err)
                 return []
 
-        except Exception:
+        except Exception as e:
+            print(
+                f"ERROR GENERATING RECOMMENDATIONS FOR ARTIST {artist_name}:")
+            traceback.print_exc()
             return []
 
     def incorporate_new_releases(self):
+        """
+        Fetches new releases from Spotify and incorporates them into the recommendation process
+        """
         try:
+            print("Fetching new music releases from Spotify...")
             new_releases = self.combinator.spotify_api.fetch_new_releases()
 
             if not new_releases or len(new_releases) == 0:
+                print("No new releases found or error fetching them.")
                 return None
 
+            print(f"Found {len(new_releases)} new releases")
             import random
             if len(new_releases) > 15:
                 sampled_releases = random.sample(new_releases, 15)
@@ -431,16 +547,30 @@ class RecommendationManager:
                 self.new_releases_pool = sampled_releases
 
             return self.new_releases_pool
-        except Exception:
+        except Exception as e:
+            print("ERROR FETCHING NEW RELEASES:")
+            traceback.print_exc()
             return None
 
+    # ! <---- This is the function that will be used to optimize the recommendations using last.fm
     def optimize_recommendations(self):
+        """
+        Optimizes recommendations using LLM seeds and LastFM data with improved
+        error handling and memory management.
+        
+        1. Use original LLM recommendation as seed only (not included in final output)
+        2. Get 3 tracks from similar artists (primary source)
+        3. Get 1 similar track from Last.fm (secondary source)
+        4. Get 1 top track from original artist (tertiary source)
+        """
         try:
             recommendations = self.format_recommendations()
             optimized_recommendations = {}
             all_recommended_tracks = set()
             
+            # Process one playlist at a time to reduce memory pressure
             for playlist_id, tracks in recommendations.items():
+                print(f"\n📋 Processing playlist: {playlist_id} with {len(tracks)} seed tracks")
                 optimized_tracks = []
                 
                 for track in tracks:
@@ -448,10 +578,12 @@ class RecommendationManager:
                     artist_name = track.get("artist_name", "Unknown Artist")
                     
                     try:
+                        print(f"\n🎧 Processing seed: {track_name} by {artist_name}")
                         lastfm_recommendations = []
                         
+                        # Track the seed to avoid recommending it
                         seed_track_key = f"{track_name.lower()}|{artist_name.lower()}"
-                        all_recommended_tracks.add(seed_track_key)
+                        all_recommended_tracks.add(seed_track_key)  # Add to seen but don't include in output
                         
                         # 1. First priority: Get tracks from similar artists (3 tracks)
                         similar_artists_count = 0
@@ -459,7 +591,7 @@ class RecommendationManager:
                             similar_artists = self.similarity.get_similar_artist(artist_name)
                             
                             if similar_artists:
-                                for similar_artist in similar_artists[:8]:
+                                for similar_artist in similar_artists[:8]:  # Try up to 8 similar artists to find 3 good tracks
                                     if similar_artists_count >= 3:
                                         break
                                         
@@ -470,6 +602,7 @@ class RecommendationManager:
                                             for top in artist_top_tracks:
                                                 top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
                                                 if top_key not in all_recommended_tracks:
+                                                    print(f"✅ Similar artist track: {top['name']} by {top['artist']}")
                                                     lastfm_recommendations.append({
                                                         "track_name": top["name"],
                                                         "artist_name": top["artist"],
@@ -478,13 +611,16 @@ class RecommendationManager:
                                                     all_recommended_tracks.add(top_key)
                                                     similar_artists_count += 1
                                                     
-                                                if similar_artists_count >= 3:
+                                                if similar_artists_count >= 3:  # Get exactly 3 tracks from similar artists
                                                     break
-                                    except Exception:
-                                        continue
-                        except Exception:
-                            pass
+                                    except Exception as artist_error:
+                                        print(f"⚠️ Error processing similar artist {similar_artist}: {str(artist_error)}")
+                                        continue  # Try next artist
+                        except Exception as similar_error:
+                            print(f"⚠️ Error getting similar artists for {artist_name}: {str(similar_error)}")
                             
+                        # Proceed even if similar artists failed
+                        
                         # 2. Second priority: Get 1 similar track from Last.fm
                         similar_track_found = False
                         try:
@@ -494,6 +630,7 @@ class RecommendationManager:
                                 for similar in similar_tracks:
                                     similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
                                     if similar_key not in all_recommended_tracks:
+                                        print(f"✅ Last.fm similar track: {similar['name']} by {similar['artist']}")
                                         lastfm_recommendations.append({
                                             "track_name": similar["name"],
                                             "artist_name": similar["artist"],
@@ -515,6 +652,7 @@ class RecommendationManager:
                                         for similar in similar_tracks:
                                             similar_key = f"{similar['name'].lower()}|{similar['artist'].lower()}"
                                             if similar_key not in all_recommended_tracks:
+                                                print(f"✅ Last.fm similar track (simplified name): {similar['name']} by {similar['artist']}")
                                                 lastfm_recommendations.append({
                                                     "track_name": similar["name"],
                                                     "artist_name": similar["artist"],
@@ -523,8 +661,8 @@ class RecommendationManager:
                                                 all_recommended_tracks.add(similar_key)
                                                 similar_track_found = True
                                                 break
-                        except Exception:
-                            pass
+                        except Exception as similar_error:
+                            print(f"⚠️ Error getting similar tracks for {track_name}: {str(similar_error)}")
                         
                         # 3. Third priority: Get 1 top track from the original artist
                         top_track_found = False
@@ -535,6 +673,7 @@ class RecommendationManager:
                                 for top in top_tracks:
                                     top_key = f"{top['name'].lower()}|{top['artist'].lower()}"
                                     if top_key not in all_recommended_tracks:
+                                        print(f"✅ Last.fm artist top track: {top['name']} by {top['artist']}")
                                         lastfm_recommendations.append({
                                             "track_name": top["name"],
                                             "artist_name": top["artist"],
@@ -543,19 +682,26 @@ class RecommendationManager:
                                         all_recommended_tracks.add(top_key)
                                         top_track_found = True
                                         break
-                        except Exception:
-                            pass
+                        except Exception as top_error:
+                            print(f"⚠️ Error getting top tracks for {artist_name}: {str(top_error)}")
+                        
+                        # If we didn't get any recommendations from LastFM for this seed, log it
+                        if not lastfm_recommendations:
+                            print(f"⚠️ No LastFM recommendations found for {track_name} by {artist_name}")
                         
                         optimized_tracks.extend(lastfm_recommendations)
                         
+                        # Force garbage collection after processing each track
                         gc.collect()
                         
-                    except Exception:
-                        continue
+                    except Exception as track_error:
+                        print(f"⚠️ Error processing track {track_name} by {artist_name}: {str(track_error)}")
+                        continue  # Skip to next track
                         
+                # Store the optimized tracks for this playlist
                 optimized_recommendations[playlist_id] = optimized_tracks
                 
-            # Add new releases 
+            # Add new releases with error handling
             try:
                 new_releases = self.incorporate_new_releases()
                 
@@ -564,13 +710,14 @@ class RecommendationManager:
                         if len(tracks) < 12:
                             added_count = 0
                             for release in new_releases:
-                                if added_count >= 3:
+                                if added_count >= 3:  # Add up to 3 new releases
                                     break
                                     
                                 try:
                                     release_key = f"{release['name'].lower()}|{release['artist'].lower()}"
                                     
                                     if release_key not in all_recommended_tracks:
+                                        print(f"✅ Adding new release: {release['name']} by {release['artist']} to playlist {playlist_id}")
                                         tracks.append({
                                             "track_name": release["name"],
                                             "artist_name": release["artist"],
@@ -578,12 +725,14 @@ class RecommendationManager:
                                         })
                                         all_recommended_tracks.add(release_key)
                                         added_count += 1
-                                except Exception:
+                                except Exception as release_error:
+                                    print(f"⚠️ Error adding new release: {str(release_error)}")
                                     continue
-            except Exception:
-                pass
+            except Exception as new_release_error:
+                print(f"⚠️ Error incorporating new releases: {str(new_release_error)}")
+                # Continue without new releases
                 
-            # Remove any duplicates
+            # Remove any duplicates that might have slipped through
             final_recommendations = {}
             
             for playlist_id, tracks in optimized_recommendations.items():
@@ -598,6 +747,7 @@ class RecommendationManager:
                             unique_tracks.append(track)
                             seen_in_playlist.add(track_key)
                     except Exception:
+                        # Skip malformed tracks
                         continue
                         
                 final_recommendations[playlist_id] = unique_tracks
@@ -605,30 +755,49 @@ class RecommendationManager:
             self.storage.tracks = final_recommendations
             return final_recommendations
             
-        except Exception:
+        except Exception as e:
+            print(f"❌ Critical error in optimization process: {str(e)}")
+            traceback.print_exc()
+            # Return empty dict as fallback
             return {}
         
     def get_enhanced_recommendations(self):
+        """
+        Main method to get enhanced recommendations with LastFM validation
+        and robust fallback mechanisms, now including new releases
+        """
         try:
             initial_recommendations = self.format_recommendations()
 
             if not initial_recommendations:
+                print("Failed to generate initial recommendations.")
                 return {}
 
             self.incorporate_new_releases()
 
             try:
+                print(
+                    "\n🔍 Optimizing recommendations using LastFM data and new releases...")
                 optimized_recommendations = self.optimize_recommendations()
                 if optimized_recommendations and len(optimized_recommendations) > 0:
                     return optimized_recommendations
                 else:
+                    print(
+                        "⚠️ Optimization failed, falling back to initial recommendations.")
                     return initial_recommendations
 
-            except Exception:
+            except Exception as e:
+                print(
+                    "⚠️ Error during optimization, falling back to initial recommendations:")
+                traceback.print_exc()
                 return initial_recommendations
 
-        except Exception:
+        except Exception as e:
+            print("❌ Critical error in recommendation process:")
+            traceback.print_exc()
             return {}
+
+
 class SpotifyManagement:
     """"
         Takes AI recommended tracks, uses the optimized flow with LastFM,

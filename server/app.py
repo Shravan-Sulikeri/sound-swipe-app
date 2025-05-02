@@ -921,7 +921,7 @@ def get_display_name():
 #         "message": f"Cleared caches for {cache_size_before} users"
 #     }
 
-# if __name__ == '__main__':
-#     port = int(os.getenv('PORT'))
-#     print(f"Server starting on port {port}...")
-#     app.run(host='0.0.0.0', port=port, debug=False)
+if __name__ == '__main__':
+    port = int(os.getenv('PORT'))
+    print(f"Server starting on port {port}...")
+    app.run(host='0.0.0.0', port=port, debug=False)
