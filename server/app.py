@@ -4,7 +4,7 @@ import base64
 import requests
 import urllib.parse
 import json
-# import psutil
+import psutil
 import tracemalloc
 from dotenv import load_dotenv
 from flask import Flask, request, redirect, jsonify, session, make_response, Response, stream_with_context, send_from_directory
@@ -812,114 +812,114 @@ def get_display_name():
         print(f"Error fetching display name: {e}")
         return jsonify({"error": "Failed to fetch display name", "details": str(e)}), 500
 
-# @app.route("/memory")
-# def memory():
-#     """
-#     Get detailed memory usage information for the application process
-#     """
-#     process = psutil.Process(os.getpid())
-#     memory_info = process.memory_info()
+@app.route("/memory")
+def memory():
+    """
+    Get detailed memory usage information for the application process
+    """
+    process = psutil.Process(os.getpid())
+    memory_info = process.memory_info()
     
-#     # Format sizes to be more human-readable
-#     def format_bytes(bytes):
-#         for unit in ['bytes', 'KB', 'MB', 'GB']:
-#             if bytes < 1024 or unit == 'GB':
-#                 return f"{bytes:.2f} {unit}"
-#             bytes /= 1024
+    # Format sizes to be more human-readable
+    def format_bytes(bytes):
+        for unit in ['bytes', 'KB', 'MB', 'GB']:
+            if bytes < 1024 or unit == 'GB':
+                return f"{bytes:.2f} {unit}"
+            bytes /= 1024
     
-#     # Create a dictionary with the memory stats
-#     memory_stats = {
-#         "rss": memory_info.rss,
-#         "rss_human": format_bytes(memory_info.rss),
-#         "vms": memory_info.vms,
-#         "vms_human": format_bytes(memory_info.vms),
-#         "uss": getattr(memory_info, 'uss', 0),  # Unique Set Size (Linux only)
-#         "uss_human": format_bytes(getattr(memory_info, 'uss', 0)),
-#         "percent": process.memory_percent(),
-#     }
+    # Create a dictionary with the memory stats
+    memory_stats = {
+        "rss": memory_info.rss,
+        "rss_human": format_bytes(memory_info.rss),
+        "vms": memory_info.vms,
+        "vms_human": format_bytes(memory_info.vms),
+        "uss": getattr(memory_info, 'uss', 0),  # Unique Set Size (Linux only)
+        "uss_human": format_bytes(getattr(memory_info, 'uss', 0)),
+        "percent": process.memory_percent(),
+    }
     
-#     # Use jsonify to ensure proper JSON response
-#     return jsonify(memory_stats)
+    # Use jsonify to ensure proper JSON response
+    return jsonify(memory_stats)
 
-# @app.route("/heap")
-# def heap():
-#     """
-#     Get heap memory tracking information from tracemalloc
-#     """
-#     if not tracemalloc.is_tracing():
-#         return {"error": "tracemalloc is not currently tracing memory allocations"}
+@app.route("/heap")
+def heap():
+    """
+    Get heap memory tracking information from tracemalloc
+    """
+    if not tracemalloc.is_tracing():
+        return {"error": "tracemalloc is not currently tracing memory allocations"}
     
-#     current, peak = tracemalloc.get_traced_memory()
+    current, peak = tracemalloc.get_traced_memory()
     
-#     # Format sizes to be more human-readable
-#     def format_bytes(bytes):
-#         for unit in ['bytes', 'KB', 'MB', 'GB']:
-#             if bytes < 1024 or unit == 'GB':
-#                 return f"{bytes:.2f} {unit}"
-#             bytes /= 1024
+    # Format sizes to be more human-readable
+    def format_bytes(bytes):
+        for unit in ['bytes', 'KB', 'MB', 'GB']:
+            if bytes < 1024 or unit == 'GB':
+                return f"{bytes:.2f} {unit}"
+            bytes /= 1024
     
-#     # Get the top 10 memory allocations
-#     top_stats = tracemalloc.take_snapshot().statistics('lineno')
-#     top_allocations = []
-#     for stat in top_stats[:10]:  # Get top 10
-#         frame = stat.traceback[0]
-#         filename = os.path.basename(frame.filename)
-#         top_allocations.append({
-#             "filename": filename,
-#             "lineno": frame.lineno,
-#             "size": stat.size,
-#             "size_human": format_bytes(stat.size),
-#             "count": stat.count
-#         })
+    # Get the top 10 memory allocations
+    top_stats = tracemalloc.take_snapshot().statistics('lineno')
+    top_allocations = []
+    for stat in top_stats[:10]:  # Get top 10
+        frame = stat.traceback[0]
+        filename = os.path.basename(frame.filename)
+        top_allocations.append({
+            "filename": filename,
+            "lineno": frame.lineno,
+            "size": stat.size,
+            "size_human": format_bytes(stat.size),
+            "count": stat.count
+        })
     
-#     return {
-#         "current_bytes": current,
-#         "current_human": format_bytes(current),
-#         "peak_bytes": peak,
-#         "peak_human": format_bytes(peak),
-#         "top_allocations": top_allocations
-#     }
+    return {
+        "current_bytes": current,
+        "current_human": format_bytes(current),
+        "peak_bytes": peak,
+        "peak_human": format_bytes(peak),
+        "top_allocations": top_allocations
+    }
 
-# @app.route("/memory/reset")
-# def reset_memory_tracking():
-#     """
-#     Reset the peak memory statistics in tracemalloc
-#     """
-#     tracemalloc.clear_traces()
-#     tracemalloc.reset_peak()
-#     return {"status": "success", "message": "Memory tracking has been reset"}
+@app.route("/memory/reset")
+def reset_memory_tracking():
+    """
+    Reset the peak memory statistics in tracemalloc
+    """
+    tracemalloc.clear_traces()
+    tracemalloc.reset_peak()
+    return {"status": "success", "message": "Memory tracking has been reset"}
 
-# @app.route("/memory/recommendations-cache-size")
-# def cache_size():
-#     """
-#     Get information about the size of the recommendation cache
-#     """
-#     total_tracks = 0
-#     users_with_cache = len(user_recommendation_cache)
+@app.route("/memory/recommendations-cache-size")
+def cache_size():
+    """
+    Get information about the size of the recommendation cache
+    """
+    total_tracks = 0
+    users_with_cache = len(user_recommendation_cache)
     
-#     for user_id, tracks in user_recommendation_cache.items():
-#         total_tracks += len(tracks)
+    for user_id, tracks in user_recommendation_cache.items():
+        total_tracks += len(tracks)
     
-#     return {
-#         "users_with_cache": users_with_cache,
-#         "total_cached_tracks": total_tracks
-#     }
+    return {
+        "users_with_cache": users_with_cache,
+        "total_cached_tracks": total_tracks
+    }
 
-# @app.route("/memory/clear-cache")
-# def clear_cache():
-#     """
-#     Clear all recommendation caches to free up memory
-#     """
-#     global user_recommendation_cache, user_chunking_cache
+@app.route("/memory/clear-cache")
+def clear_cache():
+    """
+    Clear all recommendation caches to free up memory
+    """
+    global user_recommendation_cache, user_chunking_cache
     
-#     cache_size_before = len(user_recommendation_cache)
-#     user_recommendation_cache = {}
-#     user_chunking_cache = {}
+    cache_size_before = len(user_recommendation_cache)
+    user_recommendation_cache = {}
+    user_chunking_cache = {}
     
-#     return {
-#         "status": "success", 
-#         "message": f"Cleared caches for {cache_size_before} users"
-#     }
+    return {
+        "status": "success", 
+        "message": f"Cleared caches for {cache_size_before} users"
+    }
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT'))
