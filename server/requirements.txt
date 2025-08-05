@@ -35,7 +35,7 @@ redis==4.6.0
 # Optional advanced features
 celery==5.3.1
 sentry-sdk==1.20.0
-flask-sentry==0.1.0
+
 flask-graphql==2.0.1
 graphene==3.1.0
 graphene-sqlalchemy==2.3.0
