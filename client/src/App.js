@@ -3,6 +3,8 @@ import Login from "./Pages/Login";
 import Home from "./Pages/Home";
 import { API_BASE_URL } from "./services/api";
 
+console.log("Backend API Base URL is:", API_BASE_URL);
+
 function App() {
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 
