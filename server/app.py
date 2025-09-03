@@ -142,6 +142,14 @@ def home():
     return send_from_directory(app.static_folder, 'index.html')
 
 
+@app.route('/healthz')
+def healthz():
+    try:
+        return jsonify({"status": "ok"}), 200
+    except Exception:
+        return jsonify({"status": "error"}), 500
+
+
 @app.route('/api/check-auth')
 def check_auth():
     access_token, error_response, status_code = refresh_token_if_expired()
@@ -922,6 +930,6 @@ def clear_cache():
     }
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT'))
+    port = int(os.getenv('PORT', '8000'))
     print(f"Server starting on port {port}...")
     app.run(host='0.0.0.0', port=port, debug=False)

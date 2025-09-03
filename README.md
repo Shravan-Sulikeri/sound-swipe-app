@@ -120,3 +120,27 @@ This project aims to **set a new standard** for personalized music recommendatio
 
 Made with [contrib.rocks](https://contrib.rocks)
 
+---
+
+## Render Deployment
+
+- Backend (`server/`): Python Flask served by Gunicorn. Health check at `/healthz`. Binds to `$PORT`.
+- Frontend (`client/`): React static build served by Render Static Site.
+- Repo contains `render.yaml` that defines both services and wires env vars.
+
+### Steps
+1. Push this repo to GitHub.
+2. On Render, New + -> Blueprint, point to the repo. Render will read `render.yaml`.
+3. Set the following environment variables on the API service:
+   - `SPOTIFY_CLIENT_ID`
+   - `SPOTIFY_CLIENT_SECRET`
+   - `SPOTIFY_REDIRECT_URI` (e.g., `https://sound-swipe-api.onrender.com/callback`)
+   - `MONGO_URI`, `MONGO_CLIENT`, `MONGO_SESSIONS`
+4. The Static Site will get `REACT_APP_API_BASE_URL` automatically from the API’s URL.
+5. The API will get `REACT_APP` automatically from the Static Site’s URL for CORS and redirects.
+
+### Notes
+- Ensure Spotify app Redirect URI matches the API `/callback` URL.
+- Sessions use Mongo-backed storage; provide a TLS-enabled connection string.
+- For local testing, set `.env` in `server/` and `client/` with the same variables.
+

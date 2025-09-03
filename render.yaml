@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: sound-swipe-api
+    env: python
+    rootDir: server
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app -w 2 -k eventlet -b 0.0.0.0:$PORT
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: REACT_APP
+        fromService:
+          type: static_site
+          name: sound-swipe-web
+          property: url
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: SPOTIFY_CLIENT_ID
+      - key: SPOTIFY_CLIENT_SECRET
+      - key: SPOTIFY_REDIRECT_URI
+      - key: MONGO_URI
+      - key: MONGO_CLIENT
+      - key: MONGO_SESSIONS
+
+  - type: static_site
+    name: sound-swipe-web
+    env: static
+    rootDir: client
+    buildCommand: npm ci && npm run build
+    publishDir: build
+    autoDeploy: true
+    envVars:
+      - key: REACT_APP_API_BASE_URL
+        fromService:
+          type: web
+          name: sound-swipe-api
+          property: url
