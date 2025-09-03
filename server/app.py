@@ -32,11 +32,20 @@ CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 # App configuration
 app = Flask(__name__, static_folder='../client/build', static_url_path='/')
 app.secret_key = os.getenv('SESSION_SECRET', 'RANDOM STRING')
-app.config['SESSION_TYPE'] = 'mongodb'
-app.config['SESSION_MONGODB'] = MongoClient(MONGO_URI, tls=True,
-    tlsAllowInvalidCertificates=True)
-app.config['SESSION_MONGODB_DB'] = MONGO_CLIENT
-app.config['SESSION_MONGODB_COLLECT'] = MONGO_SESSIONS
+
+# Session storage: prefer MongoDB if configured; otherwise fall back to filesystem
+if MONGO_URI and MONGO_CLIENT and MONGO_SESSIONS:
+    app.config['SESSION_TYPE'] = 'mongodb'
+    app.config['SESSION_MONGODB'] = MongoClient(
+        MONGO_URI,
+        tls=True,
+        tlsAllowInvalidCertificates=True
+    )
+    app.config['SESSION_MONGODB_DB'] = MONGO_CLIENT
+    app.config['SESSION_MONGODB_COLLECT'] = MONGO_SESSIONS
+else:
+    app.config['SESSION_TYPE'] = 'filesystem'
+
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour in seconds
 app.config['SESSION_USE_SIGNER'] = True
@@ -51,10 +60,11 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit request size to 16M
 # Initialize session
 Session(app)
 
-# Configure CORS
+# Configure CORS with safe default if REACT_APP is not set
+cors_origins = REACT_APP if REACT_APP else r".*"
 CORS(app, resources={
      r"/*": {
-         "origins": REACT_APP,
+         "origins": cors_origins,
          "supports_credentials": True,
          "allow_headers": ["Content-Type", "Authorization"],
          "expose_headers": ["Content-Type", "X-CSRFToken"],
