@@ -47,3 +47,6 @@ flask-security
 # Utilities
 python-dateutil==2.9.0.post0
 bcrypt==4.3.0
+tqdm==4.66.4
+spotipy==2.24.0
+groq==0.11.0
